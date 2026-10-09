@@ -5,6 +5,9 @@ export default defineConfig({
     environment: "node",
     include: ["{protocol,server,client}/test/**/*.test.ts"],
     testTimeout: 15000,
-    hookTimeout: 15000
+    hookTimeout: 15000,
+    env: {
+      WORMHOLE_LOG_LEVEL: "error"
+    }
   }
 });

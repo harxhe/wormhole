@@ -24,10 +24,10 @@ Current state of the Wormhole implementation.
 
 - [x] Config loader (`config.yaml`)
 - [x] Self-signed certificate generation
-- [ ] TLS control listener
-- [ ] `AUTH` with static tokens
-- [ ] `ASSIGN` random subdomain
-- [ ] Tunnel registry
+- [x] TLS control listener
+- [x] `AUTH` with static tokens
+- [x] `ASSIGN` random subdomain
+- [x] Tunnel registry
 - [ ] Public HTTP listener with `Host` routing
 - [ ] 404 / 502 pages
 - [x] Multiplexer (stream IDs, `OPEN`/`DATA`/`CLOSE`)

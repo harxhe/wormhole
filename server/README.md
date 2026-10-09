@@ -41,5 +41,8 @@ On first start the server generates a self-signed certificate into `certs/`
 | `src/scripts/gen-cert.ts` | Certificate CLI |
 | `src/logger.ts` | Scoped logger (`WORMHOLE_LOG_LEVEL`) |
 | `src/mux.ts` | Stream multiplexer, heartbeat, backpressure |
+| `src/registry.ts` | Subdomain-to-tunnel registry |
+| `src/hosts.ts` | Public host/URL and `Host` routing helpers |
+| `src/control.ts` | TLS control listener (`AUTH` / `ASSIGN`) |
 
-_Control listener, registry, and public listener: under construction._
+_Public listener and bootstrap: under construction._

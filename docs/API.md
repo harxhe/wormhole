@@ -177,4 +177,65 @@ class Stream extends EventEmitter {
 | `drain` | — | Socket drained; safe to resume writing |
 | `error` | `Error` | Stream aborted with a reason |
 
-_Control listener, registry, and public listener: not implemented yet._
+### `server/src/registry.ts`
+
+```ts
+interface TunnelSession { subdomain: string; type: TunnelType; openStream(): Stream }
+
+class TunnelRegistry {
+  readonly size: number
+  has(subdomain: string): boolean
+  get(subdomain: string): TunnelSession | undefined
+  add(tunnel: TunnelSession): void        // throws if the subdomain is taken
+  remove(subdomain: string): void
+  subdomains(): string[]
+  generateSubdomain(): string             // unused, human-friendly name
+}
+
+isValidSubdomain(value: string): boolean
+```
+
+### `server/src/hosts.ts`
+
+Pure helpers for public-host routing.
+
+```ts
+stripPort(host: string): string
+publicHostname(subdomain: string, config: { publicHost: string }): string
+publicUrl(subdomain: string, config: { publicHost: string; httpPort: number }): string
+subdomainFromHost(hostHeader: string | undefined, publicHost: string): string | null
+```
+
+`subdomainFromHost` returns `null` for the bare public host or an unrelated
+host, and validates that the extracted label is a legal subdomain.
+
+### `server/src/control.ts`
+
+```ts
+interface ControlServerOptions {
+  config: Config
+  credentials: TlsCredentials
+  registry: TunnelRegistry
+  authTimeoutMs?: number   // default 10000
+}
+createControlServer(options: ControlServerOptions): Server
+```
+
+Creates the TLS control listener. Each connection is wrapped in a `Mux`. The
+first frame must be `AUTH`; on success the server registers the tunnel and
+replies `ASSIGN` with `{ subdomain, url }`. Failures send an `ERROR` frame with
+one of these codes:
+
+| Code | Cause |
+|---|---|
+| `AUTH_TIMEOUT` | No `AUTH` within `authTimeoutMs` |
+| `BAD_AUTH` | Malformed `AUTH` payload |
+| `BAD_TOKEN` | Token not in `config.tokens` |
+| `UNSUPPORTED` | Non-HTTP tunnel type |
+| `BAD_SUBDOMAIN` | Invalid requested subdomain |
+| `SUBDOMAIN_TAKEN` | Requested subdomain already in use |
+| `ALREADY_AUTH` | A second `AUTH` was sent |
+
+The tunnel is unregistered from the registry when the connection closes.
+
+_Public listener and bootstrap: not implemented yet._
