@@ -14,11 +14,11 @@ Current state of the Wormhole implementation.
 
 ## Protocol
 
-- [ ] Frame constants and types
-- [ ] `encodeFrame`
-- [ ] `FrameDecoder` (partial and merged chunks)
-- [ ] Round-trip tests
-- [ ] `docs/PROTOCOL.md`
+- [x] Frame constants and types
+- [x] `encodeFrame`
+- [x] `FrameDecoder` (partial and merged chunks)
+- [x] Round-trip tests (13 passing)
+- [x] `docs/PROTOCOL.md`
 
 ## Server core
 
