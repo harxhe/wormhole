@@ -115,4 +115,66 @@ are missing, then returns them as buffers.
 CLI (invoked by `npm run gen-cert`) that ensures the certificate exists.
 Accepts an optional config path as the first argument.
 
-_Control listener, registry, multiplexer, and public listener: not implemented yet._
+### `server/src/logger.ts`
+
+```ts
+type LogLevel = "debug" | "info" | "warn" | "error"
+interface Logger { debug(msg, meta?); info(msg, meta?); warn(msg, meta?); error(msg, meta?) }
+createLogger(scope: string): Logger
+```
+
+Level is controlled by the `WORMHOLE_LOG_LEVEL` environment variable
+(default `info`).
+
+### `server/src/mux.ts`
+
+Multiplexes logical streams over one socket, following
+[`PROTOCOL.md`](./PROTOCOL.md).
+
+```ts
+interface MuxOptions { heartbeatIntervalMs: number; heartbeatTimeoutMs: number }
+
+class Mux extends EventEmitter {
+  constructor(socket: Socket, options: MuxOptions)
+  readonly isDestroyed: boolean
+  readonly streamCount: number
+  openStream(): Stream
+  sendFrame(type: FrameType, streamId: number, payload?: Buffer): boolean
+  sendJsonFrame(type: FrameType, streamId: number, value: unknown): boolean
+  pause(): void
+  resume(): void
+  destroy(reason?: Error): void
+}
+```
+
+**Mux events**
+
+| Event | Payload | Meaning |
+|---|---|---|
+| `control` | `Frame` | A stream-0 frame the mux does not handle (`AUTH`, `ASSIGN`, `ERROR`) |
+| `close` | `reason?: Error` | The mux shut down |
+| `error` | `Error` | Fatal protocol or socket error |
+
+The mux handles `PING`/`PONG` heartbeats itself: it sends `PING` every
+`heartbeatIntervalMs` and destroys the connection after `heartbeatTimeoutMs`
+of silence. It allocates odd stream ids (starting at 1) for `openStream`.
+
+```ts
+class Stream extends EventEmitter {
+  readonly id: number
+  readonly isClosed: boolean
+  write(chunk: Buffer): boolean   // false means backpressure; resume on "drain"
+  close(): void
+}
+```
+
+**Stream events**
+
+| Event | Payload | Meaning |
+|---|---|---|
+| `data` | `Buffer` | Bytes from the peer |
+| `close` | — | Stream ended for any reason |
+| `drain` | — | Socket drained; safe to resume writing |
+| `error` | `Error` | Stream aborted with a reason |
+
+_Control listener, registry, and public listener: not implemented yet._

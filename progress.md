@@ -30,8 +30,8 @@ Current state of the Wormhole implementation.
 - [ ] Tunnel registry
 - [ ] Public HTTP listener with `Host` routing
 - [ ] 404 / 502 pages
-- [ ] Multiplexer (stream IDs, `OPEN`/`DATA`/`CLOSE`)
-- [ ] Backpressure handling
+- [x] Multiplexer (stream IDs, `OPEN`/`DATA`/`CLOSE`)
+- [x] Backpressure handling
 - [ ] Mock client for end-to-end verification
 
 ## Client

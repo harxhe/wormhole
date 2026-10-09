@@ -39,5 +39,7 @@ On first start the server generates a self-signed certificate into `certs/`
 | `src/paths.ts` | Resolve default paths |
 | `src/certs.ts` | Self-signed certificate generation |
 | `src/scripts/gen-cert.ts` | Certificate CLI |
+| `src/logger.ts` | Scoped logger (`WORMHOLE_LOG_LEVEL`) |
+| `src/mux.ts` | Stream multiplexer, heartbeat, backpressure |
 
-_Control listener, registry, multiplexer, and public listener: under construction._
+_Control listener, registry, and public listener: under construction._
