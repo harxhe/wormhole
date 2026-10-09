@@ -1,0 +1,28 @@
+{
+  "name": "wormhole",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted reverse tunnel with a custom multiplexing protocol",
+  "workspaces": [
+    "protocol",
+    "server"
+  ],
+  "scripts": {
+    "server": "npm run start --workspace @wormhole/server",
+    "dev": "npm run dev --workspace @wormhole/server",
+    "gen-cert": "npm run gen-cert --workspace @wormhole/server",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

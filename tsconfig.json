@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@wormhole/protocol": ["./protocol/src/index.ts"]
+    }
+  },
+  "include": ["protocol/src/**/*.ts", "protocol/test/**/*.ts", "server/src/**/*.ts", "server/test/**/*.ts"]
+}
