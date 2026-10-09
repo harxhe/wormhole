@@ -62,6 +62,19 @@ export class Stream extends EventEmitter {
     this.finish();
   }
 
+  /**
+   * Pause the shared control socket. Used when a public socket is backed up so
+   * the client stops sending data for all streams (connection-wide flow control).
+   */
+  pauseControl(): void {
+    this.mux.pause();
+  }
+
+  /** Resume the shared control socket. */
+  resumeControl(): void {
+    this.mux.resume();
+  }
+
   /** @internal Called by the mux when the peer sends `CLOSE`. */
   _receiveClose(): void {
     this.finish();

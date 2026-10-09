@@ -2,26 +2,17 @@ import { afterEach, describe, expect, it } from "vitest";
 import { connect } from "node:tls";
 import type { AddressInfo } from "node:net";
 import type { Server, TLSSocket } from "node:tls";
-import { generate } from "selfsigned";
 import { FrameDecoder, FrameType, encodeJsonFrame, frameTypeName } from "@wormhole/protocol";
 import type { AssignPayload, ErrorPayload, Frame } from "@wormhole/protocol";
 import { createControlServer } from "../src/control.ts";
 import { parseConfig } from "../src/config.ts";
 import { TunnelRegistry } from "../src/registry.ts";
+import { getTestCredentials } from "./support/test-cert.ts";
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
   while (cleanups.length) cleanups.pop()!();
 });
-
-let credentialsPromise: Promise<{ key: Buffer; cert: Buffer }> | undefined;
-function getCredentials(): Promise<{ key: Buffer; cert: Buffer }> {
-  credentialsPromise ??= generate([{ name: "commonName", value: "localhost" }], {
-    algorithm: "sha256",
-    keySize: 2048
-  }).then((pems) => ({ key: Buffer.from(pems.private), cert: Buffer.from(pems.cert) }));
-  return credentialsPromise;
-}
 
 const baseConfig = {
   controlPort: 4443,
@@ -40,7 +31,7 @@ interface ControlClient {
 }
 
 async function startServer(authTimeoutMs = 500): Promise<{ server: Server; port: number; registry: TunnelRegistry }> {
-  const credentials = await getCredentials();
+  const credentials = await getTestCredentials();
   const registry = new TunnelRegistry();
   const config = parseConfig(baseConfig, { baseDir: "." });
   const server = createControlServer({ config, credentials, registry, authTimeoutMs });

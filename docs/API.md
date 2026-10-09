@@ -238,4 +238,44 @@ one of these codes:
 
 The tunnel is unregistered from the registry when the connection closes.
 
-_Public listener and bootstrap: not implemented yet._
+### `server/src/http.ts`
+
+Minimal HTTP/1.1 helpers for the raw public listener.
+
+```ts
+interface ParsedRequestHead { method: string; target: string; version: string; headers: [string, string][]; bodyOffset: number }
+
+parseRequestHead(buffer: Buffer): ParsedRequestHead | null
+getHeader(headers: [string, string][], name: string): string | undefined
+serializeRequestHead(head: ParsedRequestHead): Buffer
+renderResponse(status: number, title: string, message: string): Buffer
+```
+
+`parseRequestHead` returns `null` until the `\r\n\r\n` terminator is present or
+if the request is malformed. `serializeRequestHead` forces `Connection: close`
+so each stream carries exactly one request/response.
+
+### `server/src/public.ts`
+
+```ts
+interface PublicServerOptions { config: Config; registry: TunnelRegistry }
+createPublicServer(options: PublicServerOptions): Server
+```
+
+Creates the raw TCP public listener. For each connection it parses the request
+head, routes by the `Host` header, opens a stream, and forwards the request as
+raw HTTP/1.1 bytes. Responses stream back to the public socket.
+
+| Situation | Response |
+|---|---|
+| No matching subdomain / bare host | `404` |
+| Registered tunnel missing | `404` |
+| Tunnel cannot open a stream | `502` |
+| Stream closes without any data | `502` |
+| Headers exceed 64 KB | `400` |
+
+### `server/src/index.ts`
+
+Bootstrap. Loads config, ensures the certificate, starts the control and public
+listeners, and handles `SIGINT`/`SIGTERM`. Config path override:
+`WORMHOLE_CONFIG`.

@@ -44,5 +44,6 @@ On first start the server generates a self-signed certificate into `certs/`
 | `src/registry.ts` | Subdomain-to-tunnel registry |
 | `src/hosts.ts` | Public host/URL and `Host` routing helpers |
 | `src/control.ts` | TLS control listener (`AUTH` / `ASSIGN`) |
-
-_Public listener and bootstrap: under construction._
+| `src/http.ts` | Raw HTTP/1.1 parsing and response helpers |
+| `src/public.ts` | Public TCP listener with `Host` routing |
+| `src/index.ts` | Bootstrap and signal handling |

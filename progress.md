@@ -28,8 +28,8 @@ Current state of the Wormhole implementation.
 - [x] `AUTH` with static tokens
 - [x] `ASSIGN` random subdomain
 - [x] Tunnel registry
-- [ ] Public HTTP listener with `Host` routing
-- [ ] 404 / 502 pages
+- [x] Public HTTP listener with `Host` routing
+- [x] 404 / 502 pages
 - [x] Multiplexer (stream IDs, `OPEN`/`DATA`/`CLOSE`)
 - [x] Backpressure handling
 - [ ] Mock client for end-to-end verification
