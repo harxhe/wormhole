@@ -22,8 +22,8 @@ Current state of the Wormhole implementation.
 
 ## Server core
 
-- [ ] Config loader (`config.yaml`)
-- [ ] Self-signed certificate generation
+- [x] Config loader (`config.yaml`)
+- [x] Self-signed certificate generation
 - [ ] TLS control listener
 - [ ] `AUTH` with static tokens
 - [ ] `ASSIGN` random subdomain

@@ -74,4 +74,45 @@ class ProtocolError extends Error {
 
 Relay server. Entry point: `server/src/index.ts`.
 
-_Not implemented yet._
+### `server/src/config.ts`
+
+```ts
+class ConfigError extends Error {}
+interface CertConfig { dir: string; keyPath: string; certPath: string; commonName: string; altNames: string[]; days: number }
+interface HeartbeatConfig { intervalMs: number; timeoutMs: number }
+interface Config { controlPort: number; httpPort: number; publicHost: string; tokens: Set<string>; heartbeat: HeartbeatConfig; cert: CertConfig }
+
+parseConfig(raw: unknown, options: { baseDir: string }): Config
+loadConfig(path: string): Config
+```
+
+- `loadConfig` reads YAML from `path` and validates it, throwing `ConfigError`
+  with a descriptive message on any problem.
+- `parseConfig` is the pure validator, useful in tests.
+- Relative cert paths are resolved against `options.baseDir`.
+
+### `server/src/paths.ts`
+
+| Export | Meaning |
+|---|---|
+| `SERVER_ROOT` | Absolute path to the `server/` directory |
+| `DEFAULT_CONFIG_PATH` | `<SERVER_ROOT>/config.yaml` |
+
+### `server/src/certs.ts`
+
+```ts
+interface TlsCredentials { key: Buffer; cert: Buffer }
+
+ensureCertificate(config: CertConfig): Promise<TlsCredentials>
+generateCertificate(config: CertConfig): Promise<{ keyPath: string; certPath: string; created: boolean }>
+```
+
+Generates a self-signed certificate with `selfsigned` when the key/cert files
+are missing, then returns them as buffers.
+
+### `server/src/scripts/gen-cert.ts`
+
+CLI (invoked by `npm run gen-cert`) that ensures the certificate exists.
+Accepts an optional config path as the first argument.
+
+_Control listener, registry, multiplexer, and public listener: not implemented yet._

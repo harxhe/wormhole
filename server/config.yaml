@@ -1,0 +1,30 @@
+# Wormhole relay server configuration.
+
+# TLS control listener: clients open their tunnel connection here.
+controlPort: 4443
+
+# Public HTTP listener: incoming requests are routed by Host header.
+httpPort: 8080
+
+# Hostname used to build the public URL shown to clients and in ASSIGN.
+publicHost: localhost
+
+# Static tokens accepted from clients. Replace these with long random values.
+tokens:
+  - dev-token-please-change
+
+# Self-signed certificate for the control listener (generated on first run).
+cert:
+  dir: certs
+  keyFile: server.key
+  certFile: server.crt
+  commonName: localhost
+  altNames:
+    - localhost
+    - 127.0.0.1
+  days: 365
+
+# Heartbeat cadence and dead-connection timeout, in milliseconds.
+heartbeat:
+  intervalMs: 10000
+  timeoutMs: 30000
