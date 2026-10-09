@@ -16,6 +16,24 @@ npm run gen-cert   # regenerate the self-signed control-listener certificate
 On first start the server generates a self-signed certificate into `certs/`
 (git-ignored) for the TLS control listener.
 
+## Try it locally
+
+With the server running, start any local app on port 3000, then connect the
+throwaway mock client (see `src/mock-client.ts`):
+
+```sh
+npm run mock-client --workspace @wormhole/server -- --port 3000 --subdomain demo
+```
+
+It prints the assigned public URL. Requests to the public listener are routed by
+the `Host` header:
+
+```sh
+curl -H "Host: demo.localhost" http://localhost:8080/hello
+```
+
+Unknown subdomains return `404`; a tunnel whose local app is down returns `502`.
+
 ## Configuration (`config.yaml`)
 
 | Key | Default | Description |
@@ -46,4 +64,6 @@ On first start the server generates a self-signed certificate into `certs/`
 | `src/control.ts` | TLS control listener (`AUTH` / `ASSIGN`) |
 | `src/http.ts` | Raw HTTP/1.1 parsing and response helpers |
 | `src/public.ts` | Public TCP listener with `Host` routing |
+| `src/mock-client.ts` | Throwaway tunnel client for local verification |
+| `src/scripts/mock-client.ts` | Mock client CLI |
 | `src/index.ts` | Bootstrap and signal handling |

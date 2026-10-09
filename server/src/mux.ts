@@ -5,8 +5,7 @@ import {
   FrameDecoder,
   FrameType,
   MAX_PAYLOAD,
-  encodeFrame,
-  frameTypeName
+  encodeFrame
 } from "@wormhole/protocol";
 import type { Frame } from "@wormhole/protocol";
 import { createLogger } from "./logger.ts";
@@ -162,6 +161,19 @@ export class Mux extends EventEmitter {
     return stream;
   }
 
+  /**
+   * Register a peer-initiated stream (one announced by an incoming `OPEN`).
+   * Does not send a frame.
+   */
+  acceptStream(id: number): Stream {
+    if (this.destroyed) throw new Error("cannot accept a stream on a closed mux");
+    const existing = this.streams.get(id);
+    if (existing) return existing;
+    const stream = new Stream(this, id);
+    this.streams.set(id, stream);
+    return stream;
+  }
+
   /** Send a frame on the control socket. Returns `false` on backpressure. */
   sendFrame(type: FrameType, streamId: number, payload: Buffer = Buffer.alloc(0)): boolean {
     if (this.destroyed) return false;
@@ -253,7 +265,8 @@ export class Mux extends EventEmitter {
       case FrameType.PONG:
         break;
       case FrameType.OPEN:
-        log.warn(`unexpected ${frameTypeName(frame.type)} for stream ${frame.streamId}`);
+        log.debug(`peer opened stream ${frame.streamId}`);
+        this.emit("open", frame.streamId);
         break;
       default:
         this.emit("control", frame);

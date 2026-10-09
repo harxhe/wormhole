@@ -139,6 +139,7 @@ class Mux extends EventEmitter {
   readonly isDestroyed: boolean
   readonly streamCount: number
   openStream(): Stream
+  acceptStream(id: number): Stream
   sendFrame(type: FrameType, streamId: number, payload?: Buffer): boolean
   sendJsonFrame(type: FrameType, streamId: number, value: unknown): boolean
   pause(): void
@@ -147,11 +148,16 @@ class Mux extends EventEmitter {
 }
 ```
 
+`openStream` allocates an odd id and sends `OPEN` (server side).
+`acceptStream` registers a peer-initiated stream without sending a frame
+(client side).
+
 **Mux events**
 
 | Event | Payload | Meaning |
 |---|---|---|
 | `control` | `Frame` | A stream-0 frame the mux does not handle (`AUTH`, `ASSIGN`, `ERROR`) |
+| `open` | `number` | The peer opened a stream with this id |
 | `close` | `reason?: Error` | The mux shut down |
 | `error` | `Error` | Fatal protocol or socket error |
 
@@ -273,6 +279,30 @@ raw HTTP/1.1 bytes. Responses stream back to the public socket.
 | Tunnel cannot open a stream | `502` |
 | Stream closes without any data | `502` |
 | Headers exceed 64 KB | `400` |
+
+### `server/src/mock-client.ts`
+
+A throwaway tunnel client used to exercise the server end to end before the real
+CLI exists. It connects over TLS, authenticates, and proxies each stream to a
+local TCP port.
+
+```ts
+interface MockClientOptions {
+  serverHost: string
+  serverPort: number
+  token: string
+  localPort: number
+  subdomain?: string
+  insecure?: boolean
+  onAssigned?: (assign: AssignPayload) => void
+}
+interface MockClient { assigned: Promise<AssignPayload>; close(): void }
+startMockClient(options: MockClientOptions): MockClient
+```
+
+### `server/src/scripts/mock-client.ts`
+
+CLI wrapper around `startMockClient` (`npm run mock-client --workspace @wormhole/server`).
 
 ### `server/src/index.ts`
 

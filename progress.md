@@ -32,7 +32,14 @@ Current state of the Wormhole implementation.
 - [x] 404 / 502 pages
 - [x] Multiplexer (stream IDs, `OPEN`/`DATA`/`CLOSE`)
 - [x] Backpressure handling
-- [ ] Mock client for end-to-end verification
+- [x] Mock client for end-to-end verification
+
+### Verification
+
+- [x] `npm test` — 61 tests passing (protocol, config, mux, registry, hosts, http, control, public, e2e)
+- [x] `npx tsc --noEmit` — clean
+- [x] `curl -H "Host: demo.localhost" http://localhost:8080/` returns the local app's response
+- [x] Unknown host returns `404`
 
 ## Client
 
@@ -49,6 +56,21 @@ Current state of the Wormhole implementation.
 - [ ] Benchmarks
 - [ ] Packet captures
 
+## Handoff checklist
+
+- [x] Server starts with `npm run server` (documented in the README)
+- [x] `docs/PROTOCOL.md` complete and protocol tests pass
+- [x] A sample `curl` command proves routing works
+- [x] README lists the test token, ports, and config
+- [x] Committed to `main`, with empty `client/` and `inspector/` folders ready
+
 ## Handoff notes
 
-_None yet._
+- The protocol is frozen; coordinate any change before editing
+  [`docs/PROTOCOL.md`](./docs/PROTOCOL.md).
+- The public listener speaks **raw HTTP/1.1** and forces `Connection: close`, so
+  each stream is exactly one request/response. Keep-alive is out of scope.
+- `server/src/mock-client.ts` is a throwaway client for local verification only;
+  it is not the deliverable CLI.
+- Backpressure is connection-wide: a single slow public socket pauses the shared
+  control socket for all streams (simple flow control, acceptable for now).

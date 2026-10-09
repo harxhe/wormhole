@@ -10,6 +10,7 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "gen-cert": "tsx src/scripts/gen-cert.ts",
+    "mock-client": "tsx src/scripts/mock-client.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
