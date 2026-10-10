@@ -67,7 +67,11 @@ describe("wormhole http <port>", () => {
     expect(cli.output()).toMatch(/GET\s+\/from-cli\s+200 OK/);
 
     cli.child.kill("SIGINT");
-    expect(await cli.exited).toBe(0);
+    const code = await cli.exited;
+    // Windows cannot deliver SIGINT to a child process: kill() terminates it
+    // outright, so there is no exit code to check. A real Ctrl+C typed in a
+    // terminal does reach the CLI's handler on Windows too.
+    if (process.platform !== "win32") expect(code).toBe(0);
   });
 
   it("exits with an error on a bad token", async () => {
