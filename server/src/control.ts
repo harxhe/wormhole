@@ -9,10 +9,9 @@ import {
 import type { AssignPayload, AuthPayload, ErrorPayload, Frame } from "@wormhole/protocol";
 import type { Config } from "./config.ts";
 import type { TlsCredentials } from "./certs.ts";
-import { Mux } from "./mux.ts";
+import { Mux, createLogger } from "@wormhole/transport";
 import { isValidSubdomain, type TunnelRegistry, type TunnelSession } from "./registry.ts";
 import { publicUrl } from "./hosts.ts";
-import { createLogger } from "./logger.ts";
 
 const log = createLogger("control");
 

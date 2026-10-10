@@ -2,10 +2,16 @@ import { createServer } from "node:net";
 import type { Server, Socket } from "node:net";
 import type { Config } from "./config.ts";
 import type { TunnelRegistry } from "./registry.ts";
-import type { Stream } from "./mux.ts";
-import { getHeader, parseRequestHead, renderResponse, serializeRequestHead, type ParsedRequestHead } from "./http.ts";
+import {
+  getHeader,
+  parseRequestHead,
+  renderResponse,
+  serializeRequestHead,
+  createLogger,
+  type Stream,
+  type ParsedRequestHead
+} from "@wormhole/transport";
 import { subdomainFromHost } from "./hosts.ts";
-import { createLogger } from "./logger.ts";
 
 const log = createLogger("public");
 

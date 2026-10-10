@@ -5,7 +5,7 @@ import { ensureCertificate } from "./certs.ts";
 import { TunnelRegistry } from "./registry.ts";
 import { createControlServer } from "./control.ts";
 import { createPublicServer } from "./public.ts";
-import { createLogger } from "./logger.ts";
+import { createLogger } from "@wormhole/transport";
 
 const log = createLogger("server");
 

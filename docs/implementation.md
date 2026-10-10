@@ -23,6 +23,7 @@ Wormhole is a self-hosted reverse tunnel (an ngrok alternative) built with Node.
 ```
 wormhole/
 ├── protocol/    # frame encoder/decoder, constants, types
+├── transport/   # shared socket runtime: mux, HTTP helpers, logger
 ├── server/      # relay server
 ├── client/      # CLI client
 ├── inspector/   # dashboard (HTML/JS)

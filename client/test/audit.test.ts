@@ -4,7 +4,7 @@ import { createServer as createTlsServer } from "node:tls";
 import type { TLSSocket } from "node:tls";
 import { CONTROL_STREAM_ID, FrameDecoder, FrameType, encodeFrame, encodeJsonFrame } from "@wormhole/protocol";
 import type { ErrorPayload, Frame } from "@wormhole/protocol";
-import type { Stream } from "@wormhole/server/src/mux.ts";
+import type { Stream } from "@wormhole/transport";
 import { TunnelClient, proxyStream } from "../src/index.ts";
 import type { TunnelClientOptions } from "../src/index.ts";
 import { getTestCredentials } from "../../server/test/support/test-cert.ts";

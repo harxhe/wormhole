@@ -4,12 +4,15 @@
     "baseUrl": ".",
     "paths": {
       "@wormhole/protocol": ["./protocol/src/index.ts"],
+      "@wormhole/transport": ["./transport/src/index.ts"],
       "@wormhole/inspector": ["./inspector/src/index.ts"]
     }
   },
   "include": [
     "protocol/src/**/*.ts",
     "protocol/test/**/*.ts",
+    "transport/src/**/*.ts",
+    "transport/test/**/*.ts",
     "server/src/**/*.ts",
     "server/test/**/*.ts",
     "inspector/src/**/*.ts",

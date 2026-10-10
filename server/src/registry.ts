@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { TunnelType } from "@wormhole/protocol";
-import type { Stream } from "./mux.ts";
+import type { Stream } from "@wormhole/transport";
 
 /** An authenticated tunnel that can open streams on its control connection. */
 export interface TunnelSession {

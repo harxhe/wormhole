@@ -57,13 +57,14 @@ Unknown subdomains return `404`; a tunnel whose local app is down returns `502`.
 | `src/paths.ts` | Resolve default paths |
 | `src/certs.ts` | Self-signed certificate generation |
 | `src/scripts/gen-cert.ts` | Certificate CLI |
-| `src/logger.ts` | Scoped logger (`WORMHOLE_LOG_LEVEL`) |
-| `src/mux.ts` | Stream multiplexer, heartbeat, backpressure |
 | `src/registry.ts` | Subdomain-to-tunnel registry |
 | `src/hosts.ts` | Public host/URL and `Host` routing helpers |
 | `src/control.ts` | TLS control listener (`AUTH` / `ASSIGN`) |
-| `src/http.ts` | Raw HTTP/1.1 parsing and response helpers |
 | `src/public.ts` | Public TCP listener with `Host` routing |
 | `src/mock-client.ts` | Throwaway tunnel client for local verification |
 | `src/scripts/mock-client.ts` | Mock client CLI |
 | `src/index.ts` | Bootstrap and signal handling |
+
+The stream multiplexer, HTTP/1.1 helpers, and logger live in the shared
+[`@wormhole/transport`](../transport/README.md) package, which both the server
+and the client depend on.

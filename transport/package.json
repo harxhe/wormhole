@@ -1,0 +1,21 @@
+{
+  "name": "@wormhole/transport",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared socket runtime for Wormhole: stream multiplexer, HTTP/1.1 helpers, logger",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wormhole/protocol": "*"
+  }
+}

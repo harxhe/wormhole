@@ -10,6 +10,7 @@ multiplexes many concurrent requests over that single connection.
 ```
 wormhole/
 ├── protocol/    # frame encoder/decoder, constants, types
+├── transport/   # shared socket runtime: mux, HTTP helpers, logger
 ├── server/      # relay server
 ├── client/      # CLI client
 ├── inspector/   # dashboard (HTML/JS)

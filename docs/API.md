@@ -70,63 +70,13 @@ class ProtocolError extends Error {
 }
 ```
 
-## `@wormhole/server`
+## `@wormhole/transport`
 
-Relay server. Entry point: `server/src/index.ts`.
+Shared socket runtime used by both the relay server and the client. Public entry
+point: `transport/src/index.ts`. It depends only on `@wormhole/protocol`, so the
+client never has to depend on the server package.
 
-### `server/src/config.ts`
-
-```ts
-class ConfigError extends Error {}
-interface CertConfig { dir: string; keyPath: string; certPath: string; commonName: string; altNames: string[]; days: number }
-interface HeartbeatConfig { intervalMs: number; timeoutMs: number }
-interface Config { controlPort: number; httpPort: number; publicHost: string; tokens: Set<string>; heartbeat: HeartbeatConfig; cert: CertConfig }
-
-parseConfig(raw: unknown, options: { baseDir: string }): Config
-loadConfig(path: string): Config
-```
-
-- `loadConfig` reads YAML from `path` and validates it, throwing `ConfigError`
-  with a descriptive message on any problem.
-- `parseConfig` is the pure validator, useful in tests.
-- Relative cert paths are resolved against `options.baseDir`.
-
-### `server/src/paths.ts`
-
-| Export | Meaning |
-|---|---|
-| `SERVER_ROOT` | Absolute path to the `server/` directory |
-| `DEFAULT_CONFIG_PATH` | `<SERVER_ROOT>/config.yaml` |
-
-### `server/src/certs.ts`
-
-```ts
-interface TlsCredentials { key: Buffer; cert: Buffer }
-
-ensureCertificate(config: CertConfig): Promise<TlsCredentials>
-generateCertificate(config: CertConfig): Promise<{ keyPath: string; certPath: string; created: boolean }>
-```
-
-Generates a self-signed certificate with `selfsigned` when the key/cert files
-are missing, then returns them as buffers.
-
-### `server/src/scripts/gen-cert.ts`
-
-CLI (invoked by `npm run gen-cert`) that ensures the certificate exists.
-Accepts an optional config path as the first argument.
-
-### `server/src/logger.ts`
-
-```ts
-type LogLevel = "debug" | "info" | "warn" | "error"
-interface Logger { debug(msg, meta?); info(msg, meta?); warn(msg, meta?); error(msg, meta?) }
-createLogger(scope: string): Logger
-```
-
-Level is controlled by the `WORMHOLE_LOG_LEVEL` environment variable
-(default `info`).
-
-### `server/src/mux.ts`
+### `transport/src/mux.ts`
 
 Multiplexes logical streams over one socket, following
 [`PROTOCOL.md`](./PROTOCOL.md).
@@ -171,6 +121,8 @@ class Stream extends EventEmitter {
   readonly isClosed: boolean
   write(chunk: Buffer): boolean   // false means backpressure; resume on "drain"
   close(): void
+  pauseControl(): void            // pause the shared control socket
+  resumeControl(): void
 }
 ```
 
@@ -182,6 +134,80 @@ class Stream extends EventEmitter {
 | `close` | — | Stream ended for any reason |
 | `drain` | — | Socket drained; safe to resume writing |
 | `error` | `Error` | Stream aborted with a reason |
+
+### `transport/src/http.ts`
+
+Minimal HTTP/1.1 helpers shared by the server's public listener and the client's
+502 page.
+
+```ts
+interface ParsedRequestHead { method: string; target: string; version: string; headers: [string, string][]; bodyOffset: number }
+
+parseRequestHead(buffer: Buffer): ParsedRequestHead | null
+getHeader(headers: [string, string][], name: string): string | undefined
+serializeRequestHead(head: ParsedRequestHead): Buffer
+renderResponse(status: number, title: string, message: string): Buffer
+```
+
+`parseRequestHead` returns `null` until the `\r\n\r\n` terminator is present or
+if the request is malformed. `serializeRequestHead` forces `Connection: close`
+so each stream carries exactly one request/response.
+
+### `transport/src/logger.ts`
+
+```ts
+type LogLevel = "debug" | "info" | "warn" | "error"
+interface Logger { debug(msg, meta?); info(msg, meta?); warn(msg, meta?); error(msg, meta?) }
+createLogger(scope: string): Logger
+```
+
+Level is controlled by the `WORMHOLE_LOG_LEVEL` environment variable
+(default `info`).
+
+## `@wormhole/server`
+
+Relay server. Entry point: `server/src/index.ts`.
+
+### `server/src/config.ts`
+
+```ts
+class ConfigError extends Error {}
+interface CertConfig { dir: string; keyPath: string; certPath: string; commonName: string; altNames: string[]; days: number }
+interface HeartbeatConfig { intervalMs: number; timeoutMs: number }
+interface Config { controlPort: number; httpPort: number; publicHost: string; tokens: Set<string>; heartbeat: HeartbeatConfig; cert: CertConfig }
+
+parseConfig(raw: unknown, options: { baseDir: string }): Config
+loadConfig(path: string): Config
+```
+
+- `loadConfig` reads YAML from `path` and validates it, throwing `ConfigError`
+  with a descriptive message on any problem.
+- `parseConfig` is the pure validator, useful in tests.
+- Relative cert paths are resolved against `options.baseDir`.
+
+### `server/src/paths.ts`
+
+| Export | Meaning |
+|---|---|
+| `SERVER_ROOT` | Absolute path to the `server/` directory |
+| `DEFAULT_CONFIG_PATH` | `<SERVER_ROOT>/config.yaml` |
+
+### `server/src/certs.ts`
+
+```ts
+interface TlsCredentials { key: Buffer; cert: Buffer }
+
+ensureCertificate(config: CertConfig): Promise<TlsCredentials>
+generateCertificate(config: CertConfig): Promise<{ keyPath: string; certPath: string; created: boolean }>
+```
+
+Generates a self-signed certificate with `selfsigned` when the key/cert files
+are missing, then returns them as buffers.
+
+### `server/src/scripts/gen-cert.ts`
+
+CLI (invoked by `npm run gen-cert`) that ensures the certificate exists.
+Accepts an optional config path as the first argument.
 
 ### `server/src/registry.ts`
 
@@ -243,23 +269,6 @@ one of these codes:
 | `ALREADY_AUTH` | A second `AUTH` was sent |
 
 The tunnel is unregistered from the registry when the connection closes.
-
-### `server/src/http.ts`
-
-Minimal HTTP/1.1 helpers for the raw public listener.
-
-```ts
-interface ParsedRequestHead { method: string; target: string; version: string; headers: [string, string][]; bodyOffset: number }
-
-parseRequestHead(buffer: Buffer): ParsedRequestHead | null
-getHeader(headers: [string, string][], name: string): string | undefined
-serializeRequestHead(head: ParsedRequestHead): Buffer
-renderResponse(status: number, title: string, message: string): Buffer
-```
-
-`parseRequestHead` returns `null` until the `\r\n\r\n` terminator is present or
-if the request is malformed. `serializeRequestHead` forces `Connection: close`
-so each stream carries exactly one request/response.
 
 ### `server/src/public.ts`
 

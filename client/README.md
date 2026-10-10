@@ -40,3 +40,7 @@ npx wormhole http 3000 --server relay.example.com:4443 --secure   # real certifi
 | `src/backoff.ts` | Exponential backoff |
 | `src/index.ts` | Library exports |
 | `test/` | End-to-end tests against the real relay server |
+
+Framing and the stream multiplexer come from the shared
+[`@wormhole/transport`](../transport/README.md) package; the client does not
+depend on the server package.

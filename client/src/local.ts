@@ -1,7 +1,6 @@
 import { connect as netConnect } from "node:net";
 import type { Socket } from "node:net";
-import type { Stream } from "@wormhole/server/src/mux.ts";
-import { renderResponse } from "@wormhole/server/src/http.ts";
+import { renderResponse, type Stream } from "@wormhole/transport";
 import type { ErrorPayload } from "@wormhole/protocol";
 import type { StreamObserver } from "@wormhole/inspector";
 

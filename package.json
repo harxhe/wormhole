@@ -6,6 +6,7 @@
   "description": "Self-hosted reverse tunnel with a custom multiplexing protocol",
   "workspaces": [
     "protocol",
+    "transport",
     "server",
     "inspector",
     "client"

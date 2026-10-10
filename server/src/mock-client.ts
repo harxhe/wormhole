@@ -9,8 +9,7 @@ import {
   decodeJson
 } from "@wormhole/protocol";
 import type { AssignPayload, AuthPayload, ErrorPayload, Frame } from "@wormhole/protocol";
-import { Mux } from "./mux.ts";
-import { createLogger } from "./logger.ts";
+import { Mux, createLogger } from "@wormhole/transport";
 
 const log = createLogger("mock-client");
 

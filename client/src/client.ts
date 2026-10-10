@@ -10,7 +10,7 @@ import {
   decodeJson
 } from "@wormhole/protocol";
 import type { AssignPayload, AuthPayload, ErrorPayload, Frame } from "@wormhole/protocol";
-import { Mux } from "@wormhole/server/src/mux.ts";
+import { Mux } from "@wormhole/transport";
 import type { StreamObserver } from "@wormhole/inspector";
 import { Backoff } from "./backoff.ts";
 import type { BackoffOptions } from "./backoff.ts";

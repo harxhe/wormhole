@@ -28,9 +28,10 @@ inbound port. Every public request becomes one stream on that connection.
 | `inspector/src/server.ts` | Dashboard: static files, JSON API, WebSocket at `/ws` |
 | `inspector/public/` | Plain HTML/JS/CSS dashboard |
 
-The client reuses the server's `Mux` (`server/src/mux.ts`) instead of copying
-it, so framing, the 16 KB split, `PING`/`PONG` and backpressure behave
-identically on both ends. `/protocol` is untouched.
+The client and server share `Mux` and the HTTP helpers through
+`@wormhole/transport`, so framing, the 16 KB split, `PING`/`PONG` and
+backpressure behave identically on both ends. `/protocol` is untouched and the
+client does not depend on the server package.
 
 ## Session lifecycle
 
@@ -133,9 +134,6 @@ server in-process:
 
 ## Known issues and unfinished items
 
-- **Cross-package import.** The client imports `Mux` and `renderResponse` from
-  `server/src`. Moving `Mux` into `/protocol` would be cleaner but touches the
-  frozen package, so it needs P1's agreement.
 - **Reconnect can wait up to ~30 s for the same URL** after an abrupt network
   loss (Wi-Fi drop), because the server only frees the name when its own
   heartbeat times out. Clean server restarts reconnect in about a second.
