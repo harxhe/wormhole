@@ -4,7 +4,6 @@ import type { AddressInfo } from "node:net";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { WebSocketServer } from "ws";
 import type { WebSocket } from "ws";
 import { ReplayError } from "./store.ts";
 import type { RequestStore, RequestSummary, TunnelStatus } from "./store.ts";
@@ -63,6 +62,8 @@ export async function startInspectorServer(options: InspectorServerOptions): Pro
     handle(req, res, store).catch((err: Error) => sendJson(res, 500, { error: err.message }));
   });
 
+  // Loaded lazily so the client can run with --no-inspect without pulling in ws.
+  const { WebSocketServer } = await import("ws");
   const wss = new WebSocketServer({
     server: http,
     path: "/ws",

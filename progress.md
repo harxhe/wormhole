@@ -76,7 +76,7 @@ Current state of the Wormhole implementation.
 
 ## Handoff back checklist (Phase 1 → Phase 2)
 
-- [ ] Branch merged to `main` (README section on running the client: done)
+- [x] Branch merged to `main` (PR #1, README section on running the client: done)
 - [x] List of known bugs or unfinished items ([`docs/CLIENT.md`](./docs/CLIENT.md#known-issues-and-unfinished-items))
 - [x] Short note on client design in `docs/` ([`docs/CLIENT.md`](./docs/CLIENT.md))
 
@@ -93,9 +93,9 @@ Current state of the Wormhole implementation.
 
 ### Phase 1 notes
 
-- `/protocol` is unchanged. The client reuses the server's `Mux`
-  (`server/src/mux.ts`) rather than copying it; moving `Mux` into `/protocol`
-  would be cleaner but needs agreement first.
+- `/protocol` is unchanged. The client and server share `Mux`, the HTTP helpers
+  and the logger through the new [`@wormhole/transport`](./transport/README.md)
+  package; the client no longer depends on `@wormhole/server`.
 - `server/src/mock-client.ts` is superseded by the real client and can be
   removed in Phase 2 (the server e2e tests still use it).
 - Phase 2 server-side dead-session cleanup also speeds up reconnects: after an
@@ -103,3 +103,11 @@ Current state of the Wormhole implementation.
   server frees its old name (up to the 30 s heartbeat timeout).
 - For the benchmarks: run the client with `--no-inspect` to measure the tunnel
   alone.
+
+### Post-merge cleanup (resolved review items)
+
+- Extracted `@wormhole/transport` (`Mux`, `Stream`, HTTP helpers, logger) so the
+  client no longer reaches into `server/src`; dependency direction is now
+  `protocol ← transport ← {server, client}`.
+- Declared `tsx` as a dependency of the client (its `bin` runs TS directly).
+- `ws` is imported lazily by the inspector, so `--no-inspect` no longer loads it.
