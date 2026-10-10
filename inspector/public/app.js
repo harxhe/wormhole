@@ -31,7 +31,7 @@ function connect() {
       case "clear":
         state.requests.clear();
         state.selected = null;
-        $("detail").hidden = true;
+        showDetail(false);
         renderList();
         break;
       case "status":
@@ -59,6 +59,12 @@ function renderStatus(status) {
     link.textContent = "";
   }
   $("status-local").textContent = status.localPort ? `→ localhost:${status.localPort}` : "";
+}
+
+// The details column only takes space while a request is selected.
+function showDetail(visible) {
+  $("detail").hidden = !visible;
+  document.querySelector(".layout").classList.toggle("with-detail", visible);
 }
 
 function statusClass(request) {
@@ -110,7 +116,8 @@ function renderList() {
     }
     tr.append(path);
 
-    const statusText = request.state === "error" ? "ERR" : request.status ?? "…";
+    // Show the real status code (e.g. a red 502); "ERR" only when no response came back at all.
+    const statusText = request.status ?? (request.state === "error" ? "ERR" : "…");
     tr.append(cell(String(statusText), `badge ${statusClass(request)}`));
     tr.append(cell(formatMs(request.durationMs), "num"));
     tr.append(cell(formatBytes(request.responseBytes), "num"));
@@ -134,7 +141,7 @@ async function loadDetail(id) {
   const detail = await response.json();
   if (state.selected !== id) return;
 
-  $("detail").hidden = false;
+  showDetail(true);
   $("d-title").textContent = `${detail.method ?? "?"} ${detail.path ?? ""}`;
   const parts = [
     detail.status !== null ? `${detail.status} ${detail.statusText ?? ""}` : "no response",
