@@ -1,0 +1,22 @@
+{
+  "name": "@wormhole/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Wormhole tunnel client and CLI",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "bin": {
+    "wormhole": "./bin/wormhole.js"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wormhole/inspector": "*",
+    "@wormhole/protocol": "*",
+    "@wormhole/server": "*",
+    "commander": "^14.0.0"
+  }
+}

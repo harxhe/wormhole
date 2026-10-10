@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wormhole Inspector</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">wormhole <span>inspector</span></div>
+    <div class="status" id="status">
+      <span class="dot" id="status-dot"></span>
+      <span id="status-text">connecting…</span>
+      <a id="status-url" target="_blank" rel="noopener"></a>
+      <span class="muted" id="status-local"></span>
+    </div>
+    <div class="actions">
+      <input id="filter" type="search" placeholder="Filter path or method" aria-label="Filter requests">
+      <button id="clear" type="button">Clear</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="list" aria-label="Requests">
+      <table>
+        <thead>
+          <tr><th>Method</th><th>Path</th><th>Status</th><th class="num">Time</th><th class="num">Size</th><th>At</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="empty" id="empty">No requests yet. Hit your public URL and they will show up here live.</p>
+    </section>
+
+    <section class="detail" id="detail" aria-label="Request detail" hidden>
+      <div class="detail-head">
+        <div>
+          <div class="title" id="d-title"></div>
+          <div class="muted" id="d-meta"></div>
+        </div>
+        <button id="replay" type="button" class="primary">Replay</button>
+      </div>
+      <p class="error" id="d-error" hidden></p>
+      <h3>Request headers</h3>
+      <table class="headers" id="d-req-headers"></table>
+      <h3>Request body <span class="muted" id="d-req-size"></span></h3>
+      <pre id="d-req-body"></pre>
+      <h3>Response headers</h3>
+      <table class="headers" id="d-res-headers"></table>
+      <h3>Response body <span class="muted" id="d-res-size"></span></h3>
+      <pre id="d-res-body"></pre>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

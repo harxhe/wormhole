@@ -3,8 +3,18 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@wormhole/protocol": ["./protocol/src/index.ts"]
+      "@wormhole/protocol": ["./protocol/src/index.ts"],
+      "@wormhole/inspector": ["./inspector/src/index.ts"]
     }
   },
-  "include": ["protocol/src/**/*.ts", "protocol/test/**/*.ts", "server/src/**/*.ts", "server/test/**/*.ts"]
+  "include": [
+    "protocol/src/**/*.ts",
+    "protocol/test/**/*.ts",
+    "server/src/**/*.ts",
+    "server/test/**/*.ts",
+    "inspector/src/**/*.ts",
+    "inspector/test/**/*.ts",
+    "client/src/**/*.ts",
+    "client/test/**/*.ts"
+  ]
 }

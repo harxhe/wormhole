@@ -309,3 +309,192 @@ CLI wrapper around `startMockClient` (`npm run mock-client --workspace @wormhole
 Bootstrap. Loads config, ensures the certificate, starts the control and public
 listeners, and handles `SIGINT`/`SIGTERM`. Config path override:
 `WORMHOLE_CONFIG`.
+
+## `@wormhole/client`
+
+Tunnel client and CLI. Entry points: `client/src/index.ts` (library) and
+`client/src/cli.ts` (CLI, run via `client/bin/wormhole.js`). Design notes:
+[`CLIENT.md`](./CLIENT.md).
+
+### `client/src/cli.ts`
+
+```
+wormhole http <port> [options]
+
+-t, --token <token>       auth token (env: WORMHOLE_TOKEN)            required
+-s, --server <host:port>  relay control server (env: WORMHOLE_SERVER)  default localhost:4443
+-n, --subdomain <name>    request a specific subdomain
+    --local-host <host>   host of the local app                        default 127.0.0.1
+    --inspect-port <port> inspector dashboard port                      default 4040
+    --no-inspect          do not start the inspector
+    --secure              verify the relay's TLS certificate
+    --ca <file>           trust this certificate (implies --secure)
+    --no-reconnect        exit instead of reconnecting
+```
+
+Exit code `0` on Ctrl+C, `1` on a fatal error (bad token, subdomain taken,
+certificate failure).
+
+### `client/src/client.ts`
+
+```ts
+interface TunnelClientOptions {
+  serverHost: string; serverPort: number; token: string;
+  localPort: number; localHost?: string;          // default 127.0.0.1
+  subdomain?: string;
+  verifyCertificate?: boolean;                    // default false (self-signed dev relay)
+  ca?: Buffer | string;
+  heartbeatIntervalMs?: number;                   // default 10000
+  heartbeatTimeoutMs?: number;                    // default 30000
+  handshakeTimeoutMs?: number;                    // default 10000
+  reconnect?: boolean;                            // default true
+  backoff?: BackoffOptions;
+  observe?: (streamId: number) => StreamObserver | undefined;
+}
+
+type ClientState = "idle" | "connecting" | "online" | "reconnecting" | "closed"
+
+class TunnelClient extends EventEmitter {
+  constructor(options: TunnelClientOptions)
+  readonly state: ClientState
+  readonly assigned: AssignPayload | undefined
+  readonly streamCount: number
+  start(): Promise<AssignPayload>   // resolves on first ASSIGN, rejects only on a fatal error
+  close(): void                     // closes all streams; no reconnect
+}
+
+class TunnelError extends Error { readonly code: string }
+```
+
+**TunnelClient events**
+
+| Event | Payload | Meaning |
+|---|---|---|
+| `connecting` | `{ attempt }` | Dialing the relay |
+| `assigned` | `AssignPayload, { reconnected }` | Tunnel is live |
+| `disconnected` | `{ reason }` | An online connection was lost |
+| `reconnecting` | `{ attempt, delayMs, reason }` | Next attempt scheduled |
+| `fatal` | `TunnelError` | Gave up; the client is closed |
+| `closed` | — | `close()` finished |
+
+Fatal codes: `BAD_TOKEN`, `BAD_AUTH`, `UNSUPPORTED`, `BAD_SUBDOMAIN`, TLS
+certificate errors, and `SUBDOMAIN_TAKEN` before the first `ASSIGN`. Everything
+else is retried.
+
+### `client/src/local.ts`
+
+```ts
+interface LocalTarget { host: string; port: number }
+interface ProxyStreamOptions {
+  stream: Stream; target: LocalTarget; observer?: StreamObserver;
+  connectTimeoutMs?: number;   // default 10000
+  onDone?: () => void;
+}
+proxyStream(options: ProxyStreamOptions): void
+```
+
+Bridges one stream to one local TCP connection: queues `DATA` until connected,
+sends a `502 Bad Gateway` page if the local app is unreachable, closes each side
+when the other closes, and applies backpressure both ways.
+
+### `client/src/backoff.ts`
+
+```ts
+interface BackoffOptions { initialDelayMs?: number; maxDelayMs?: number; factor?: number; jitter?: number }
+class Backoff {
+  constructor(options?: BackoffOptions)   // defaults 1000, 30000, 2, 0.2
+  readonly attempts: number
+  next(random?: () => number): number
+  reset(): void
+}
+```
+
+## `@wormhole/inspector`
+
+Request log and dashboard used by the client. Entry point:
+`inspector/src/index.ts`.
+
+### `inspector/src/store.ts`
+
+```ts
+interface StreamObserver {
+  request(chunk: Buffer): void    // bytes from the public side
+  response(chunk: Buffer): void   // bytes from the local app
+  end(info?: { error?: string }): void
+}
+
+interface RequestSummary {
+  id: number; streamId: number | null; replayOf: number | null;
+  state: "pending" | "complete" | "error";
+  method: string | null; path: string | null;
+  status: number | null; statusText: string | null;
+  startedAt: number; ttfbMs: number | null; durationMs: number | null;
+  requestBytes: number; responseBytes: number;
+  replayable: boolean; error: string | null;
+}
+
+interface RequestDetail extends RequestSummary {
+  requestHeaders: [string, string][]; responseHeaders: [string, string][];
+  requestBody: BodyPreview; responseBody: BodyPreview;
+}
+interface BodyPreview { text: string | null; size: number; truncated: boolean; binary: boolean }
+
+interface TunnelStatus {
+  state: "connecting" | "online" | "reconnecting" | "offline";
+  url: string | null; localPort: number | null; message: string | null;
+}
+
+class RequestStore extends EventEmitter {
+  constructor(options?: { target?: { host: string; port: number }; maxRecords?: number; now?: () => number })
+  readonly size: number
+  readonly status: TunnelStatus
+  setStatus(status: Partial<TunnelStatus>): void
+  setTarget(target: { host: string; port: number }): void
+  observe(streamId: number): StreamObserver
+  list(): RequestSummary[]                  // newest first
+  get(id: number): RequestDetail | undefined
+  replay(id: number): Promise<RequestSummary>
+  clear(): void
+}
+```
+
+Events: `upsert (RequestSummary)`, `clear ()`, `status (TunnelStatus)`.
+`replay` throws `ReplayError` with code `NOT_FOUND`, `NOT_REPLAYABLE` or
+`NO_TARGET`.
+
+| Constant | Value |
+|---|---|
+| `MAX_CAPTURE_BYTES` | 1 MB per request kept for replay |
+| `MAX_PREVIEW_BYTES` | 16 KB of body shown |
+| `DEFAULT_MAX_RECORDS` | 200 |
+| `REPLAY_TIMEOUT_MS` | 30000 |
+
+### `inspector/src/server.ts`
+
+```ts
+startInspectorServer(options: { store: RequestStore; port?: number; host?: string }): Promise<InspectorServer>
+interface InspectorServer { readonly port: number; readonly url: string; close(): Promise<void> }
+```
+
+Binds `127.0.0.1:4040` by default.
+
+| Method | Path | Response |
+|---|---|---|
+| GET | `/` | Dashboard (`inspector/public/`) |
+| GET | `/api/status` | `TunnelStatus` |
+| GET | `/api/requests` | `RequestSummary[]` |
+| GET | `/api/requests/:id` | `RequestDetail` or `404` |
+| POST | `/api/requests/:id/replay` | New `RequestSummary`; `409` if not replayable |
+| DELETE | `/api/requests` | Clears the log |
+| WS | `/ws` | `snapshot`, then `upsert` / `clear` / `status` messages |
+
+Cross-origin `POST`, `DELETE` and WebSocket connections are rejected (`403`).
+
+### `inspector/src/parse.ts`
+
+```ts
+parseRequestHead(buffer: Buffer): RequestHead | null
+parseResponseHead(buffer: Buffer): ResponseHead | null
+getHeader(headers: [string, string][], name: string): string | undefined
+decodeChunked(body: Buffer): Buffer | null
+```

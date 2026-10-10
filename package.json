@@ -6,11 +6,14 @@
   "description": "Self-hosted reverse tunnel with a custom multiplexing protocol",
   "workspaces": [
     "protocol",
-    "server"
+    "server",
+    "inspector",
+    "client"
   ],
   "scripts": {
     "server": "npm run start --workspace @wormhole/server",
     "dev": "npm run dev --workspace @wormhole/server",
+    "client": "npm run start --workspace @wormhole/client --",
     "gen-cert": "npm run gen-cert --workspace @wormhole/server",
     "test": "vitest run",
     "test:watch": "vitest",
