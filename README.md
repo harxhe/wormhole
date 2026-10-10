@@ -59,7 +59,7 @@ It prints the public URL and logs each request:
 
 ```
 Status      online
-Forwarding  http://demo.localhost:8080 -> http://127.0.0.1:3000
+Forwarding  http://demo.localhost:8080 -> http://localhost:3000
 Inspector   http://127.0.0.1:4040
 ```
 
@@ -76,7 +76,7 @@ Open <http://localhost:4040> to watch requests arrive live and replay them.
 | `-t, --token <token>` | `WORMHOLE_TOKEN` | Auth token (required) |
 | `-s, --server <host:port>` | `localhost:4443` | Relay control server (`WORMHOLE_SERVER`) |
 | `-n, --subdomain <name>` | random | Request a specific subdomain |
-| `--local-host <host>` | `127.0.0.1` | Host of the local app |
+| `--local-host <host>` | `localhost` | Host of the local app |
 | `--inspect-port <port>` | `4040` | Inspector port |
 | `--no-inspect` | | Do not start the inspector |
 | `--secure` / `--ca <file>` | off | Verify the relay's TLS certificate |

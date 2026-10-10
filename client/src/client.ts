@@ -45,6 +45,7 @@ export interface TunnelClientOptions {
   token: string;
   /** Local app to expose. */
   localPort: number;
+  /** Host of the local app (default `localhost`, as in the implementation plan). */
   localHost?: string;
   /** Requested subdomain; the server picks one when omitted. */
   subdomain?: string;
@@ -60,6 +61,12 @@ export interface TunnelClientOptions {
   backoff?: BackoffOptions;
   /** Inspector hook: return an observer to record a stream. */
   observe?: (streamId: number) => StreamObserver | undefined;
+}
+
+/** One row of the client's stream table. */
+export interface StreamEntry {
+  id: number;
+  openedAt: number;
 }
 
 export class TunnelError extends Error {
@@ -97,7 +104,8 @@ export class TunnelClient extends EventEmitter {
   private subdomain: string | undefined;
   private everAssigned = false;
   private attempt = 0;
-  private activeStreams = 0;
+  /** Stream table: one entry per stream the server has opened and not yet closed. */
+  private readonly streamTable = new Map<number, StreamEntry>();
   private startPromise: Promise<AssignPayload> | undefined;
   private resolveStart: ((assign: AssignPayload) => void) | undefined;
   private rejectStart: ((err: Error) => void) | undefined;
@@ -120,7 +128,12 @@ export class TunnelClient extends EventEmitter {
 
   /** Streams currently being proxied. */
   get streamCount(): number {
-    return this.activeStreams;
+    return this.streamTable.size;
+  }
+
+  /** Snapshot of the stream table. */
+  get streams(): StreamEntry[] {
+    return [...this.streamTable.values()].map((entry) => ({ ...entry }));
   }
 
   /**
@@ -254,15 +267,20 @@ export class TunnelClient extends EventEmitter {
   }
 
   private onOpen(mux: Mux, streamId: number): void {
-    if (this.currentState !== "online") return;
     const stream = mux.acceptStream(streamId);
-    this.activeStreams += 1;
+    if (this.currentState !== "online") {
+      // OPEN before ASSIGN is a server bug; refuse the stream instead of leaving it hanging.
+      stream.close();
+      return;
+    }
+    this.streamTable.set(streamId, { id: streamId, openedAt: Date.now() });
     proxyStream({
       stream,
-      target: { host: this.options.localHost ?? "127.0.0.1", port: this.options.localPort },
+      target: { host: this.options.localHost ?? "localhost", port: this.options.localPort },
       observer: this.options.observe?.(streamId),
+      reportError: (error) => mux.sendJsonFrame(FrameType.ERROR, streamId, error),
       onDone: () => {
-        this.activeStreams -= 1;
+        this.streamTable.delete(streamId);
       }
     });
   }

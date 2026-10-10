@@ -27,6 +27,12 @@ function parsePort(value: string): number {
   return port;
 }
 
+function parseLocalPort(value: string): number {
+  const port = parsePort(value);
+  if (port === 0) throw new InvalidArgumentError("must be a port number (1-65535)");
+  return port;
+}
+
 function parseServer(value: string): { host: string; port: number } {
   const trimmed = value.replace(/^tls:\/\//, "");
   const colon = trimmed.lastIndexOf(":");
@@ -49,11 +55,11 @@ program
 program
   .command("http")
   .description("Tunnel public HTTP traffic to a local port")
-  .argument("<port>", "local port to expose", parsePort)
+  .argument("<port>", "local port to expose", parseLocalPort)
   .addOption(new Option("-t, --token <token>", "auth token").env("WORMHOLE_TOKEN"))
   .addOption(new Option("-s, --server <host:port>", "relay control server").default(DEFAULT_SERVER).env("WORMHOLE_SERVER"))
   .option("-n, --subdomain <name>", "request a specific subdomain")
-  .option("--local-host <host>", "host of the local app", "127.0.0.1")
+  .option("--local-host <host>", "host of the local app", "localhost")
   .option("--inspect-port <port>", "inspector dashboard port", parsePort, DEFAULT_INSPECTOR_PORT)
   .option("--no-inspect", "do not start the inspector dashboard")
   .option("--secure", "verify the relay's TLS certificate", false)

@@ -24,7 +24,7 @@ npx wormhole http 3000 --server relay.example.com:4443 --secure   # real certifi
 | Connect | TLS to `--server` (default `localhost:4443`) |
 | Authenticate | `AUTH { token, type: "http", subdomain? }` → `ASSIGN { subdomain, url }` |
 | Requests | Each `OPEN` dials `localhost:<port>`; bytes flow both ways as `DATA` |
-| Local app down | Replies `502 Bad Gateway` |
+| Local app down | `ERROR LOCAL_DOWN` on the stream, then a `502 Bad Gateway` page |
 | Heartbeat | Replies `PONG`; 30 s of silence means the connection is dead |
 | Connection lost | Reconnects after 1 s, 2 s, 4 s … 30 s with the same subdomain |
 | Inspector | Live request log and replay at <http://localhost:4040> |

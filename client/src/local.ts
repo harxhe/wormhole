@@ -2,6 +2,7 @@ import { connect as netConnect } from "node:net";
 import type { Socket } from "node:net";
 import type { Stream } from "@wormhole/server/src/mux.ts";
 import { renderResponse } from "@wormhole/server/src/http.ts";
+import type { ErrorPayload } from "@wormhole/protocol";
 import type { StreamObserver } from "@wormhole/inspector";
 
 /** How long to wait for the local app to accept a connection. */
@@ -20,6 +21,11 @@ export interface ProxyStreamOptions {
   /** Optional inspector hooks for this stream. */
   observer?: StreamObserver;
   connectTimeoutMs?: number;
+  /**
+   * Send a stream-level `ERROR` frame to the server. Used to report
+   * `LOCAL_DOWN` (PROTOCOL.md) alongside the 502 page.
+   */
+  reportError?: (error: ErrorPayload) => void;
   /** Called once when the stream and its local socket are both done. */
   onDone?: () => void;
 }
@@ -31,8 +37,9 @@ export interface ProxyStreamOptions {
  *   flushed in order once it connects.
  * - Local bytes go back as `DATA` frames; `Stream.write` splits them into
  *   16 KB frames.
- * - If the local app cannot be reached, a `502 Bad Gateway` page is sent on
- *   the stream before it is closed.
+ * - If the local app cannot be reached, the server gets an `ERROR` frame
+ *   `{ code: "LOCAL_DOWN" }` for the stream, then a `502 Bad Gateway` page as
+ *   `DATA`, then `CLOSE`.
  * - Either side closing closes the other (`CLOSE` frame / socket destroy).
  * - Backpressure: a full local socket pauses the shared control socket, and a
  *   full control socket pauses the local socket (same rules as the server).
@@ -61,6 +68,10 @@ export function proxyStream(options: ProxyStreamOptions): void {
       `Wormhole could not reach the local app at <code>${target.host}:${target.port}</code> (${escapeHtml(failure)}).`
     );
     responded = true;
+    options.reportError?.({
+      code: "LOCAL_DOWN",
+      message: `local app at ${target.host}:${target.port} is unreachable (${failure})`
+    });
     observer?.response(page);
     stream.write(page);
     finish(`local app unreachable (${failure})`);

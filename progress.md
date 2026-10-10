@@ -46,14 +46,14 @@ Current state of the Wormhole implementation.
 - [x] CLI: `wormhole http <port>`, `--token`, `--server` (commander)
 - [x] TLS connect, `AUTH`, parse `ASSIGN`, print the public URL
 - [x] Handle `OPEN`: dial `localhost:PORT`, queue `DATA` until connected
-- [x] Stream table: local data to 16 KB `DATA` frames, `CLOSE`, `502` if the local app is down
+- [x] Stream table (one entry per stream): local data to 16 KB `DATA` frames, `CLOSE`, `502` + `ERROR LOCAL_DOWN` if the local app is down
 - [x] Heartbeat: reply `PONG`, detect 30 s silence
 - [x] Auto-reconnect with exponential backoff, same subdomain on retry
 - [x] Inspector on `:4040`: method, path, status, timing, live updates over `ws`, replay button
 
 ### Verification
 
-- [x] `npm test` — 97 tests passing (61 server/protocol + 36 client/inspector)
+- [x] `npm test` — 105 tests passing (61 server/protocol + 44 client/inspector)
 - [x] 50 concurrent requests over one tunnel connection
 - [x] 2 MB response and 300 KB upload split into 16 KB frames
 - [x] `502` when the local app is down; tunnel stays up

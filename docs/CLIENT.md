@@ -47,18 +47,24 @@ identically on both ends. `/protocol` is untouched.
 
 ## Stream table
 
-The `Mux` keeps the `streamId → Stream` map; `proxyStream` owns one local socket
-per stream:
+`TunnelClient` keeps a stream table (`streamId → { id, openedAt }`, exposed as
+`client.streams`), one entry per open stream. The `Mux` routes frames by stream
+id, and `proxyStream` owns one local socket per stream:
 
 | Event | Action |
 |---|---|
-| `OPEN n` | `acceptStream(n)`, dial `localhost:PORT` |
+| `OPEN n` | Add stream-table entry, `acceptStream(n)`, dial `localhost:PORT` |
+| `OPEN` before `ASSIGN` | Refused with `CLOSE` (server bug guard) |
 | `DATA` before the local socket connects | Queued, flushed in order on connect |
 | `DATA` after connect | Written to the local socket |
 | Local socket data | `stream.write()` → `DATA` frames of at most 16 KB |
-| Local socket ends | `CLOSE n` |
+| Local socket ends | `CLOSE n`, stream-table entry removed |
 | `CLOSE n` from server | Local socket destroyed |
-| Local connect fails (`ECONNREFUSED`, timeout) | `502 Bad Gateway` page as `DATA`, then `CLOSE` |
+| Local connect fails (`ECONNREFUSED`, 10 s timeout) | `ERROR n { code: "LOCAL_DOWN" }`, `502 Bad Gateway` page as `DATA`, then `CLOSE` |
+
+**Local host.** The client dials `localhost` (as in the plan), not
+`127.0.0.1`, so apps that bind only to IPv6 `::1` (Vite's default on many
+machines) are reachable too. `--local-host` overrides it.
 
 **502 detail.** `OPEN` can arrive a moment before the request's first `DATA`.
 If the local connect fails first, the client waits up to 1 s for the request
@@ -118,7 +124,9 @@ server in-process:
 | TLS + `AUTH` + `ASSIGN` | `client.test.ts` › connect and authenticate |
 | 50 concurrent requests | `client.test.ts` › handles 50 concurrent requests |
 | 16 KB chunking | 2 MB response / 300 KB upload test |
-| 502 when local app is down | `client.test.ts` › answers 502 … |
+| 502 when local app is down | `client.test.ts` › answers 502 …; `audit.test.ts` › `ERROR LOCAL_DOWN` frame order |
+| Stream table, one entry per stream | `audit.test.ts` › stream table |
+| `SUBDOMAIN_TAKEN` retry, handshake timeout, `--secure`/`--ca` | `audit.test.ts` |
 | Heartbeat reply and 30 s silence | `client.test.ts` › heartbeat (shortened timers) |
 | Reconnect, same subdomain, server restart | `client.test.ts` › auto-reconnect |
 | Inspector API, WebSocket, replay | `inspector/test/inspector.test.ts` |

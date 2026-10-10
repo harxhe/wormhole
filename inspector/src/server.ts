@@ -69,6 +69,12 @@ export async function startInspectorServer(options: InspectorServerOptions): Pro
     verifyClient: ({ req }: { req: IncomingMessage }) => isSameOrigin(req)
   });
 
+  // Node pitfall from the plan: every socket/server gets an error handler.
+  wss.on("error", () => {
+    // Re-emitted HTTP server errors; listen() failures are reported below.
+  });
+  http.on("clientError", (_err, socket) => socket.destroy());
+
   const broadcast = (message: InspectorMessage): void => {
     const data = JSON.stringify(message);
     for (const client of wss.clients) {
@@ -97,6 +103,7 @@ export async function startInspectorServer(options: InspectorServerOptions): Pro
     });
   });
 
+  http.on("error", (err: Error) => console.error(`inspector error: ${err.message}`));
   const port = (http.address() as AddressInfo).port;
 
   return {

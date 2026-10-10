@@ -283,7 +283,8 @@ raw HTTP/1.1 bytes. Responses stream back to the public socket.
 ### `server/src/mock-client.ts`
 
 A throwaway tunnel client used to exercise the server end to end before the real
-CLI exists. It connects over TLS, authenticates, and proxies each stream to a
+CLI existed; superseded by [`@wormhole/client`](#wormholeclient) and kept for the
+server's own e2e tests. It connects over TLS, authenticates, and proxies each stream to a
 local TCP port.
 
 ```ts
@@ -324,7 +325,7 @@ wormhole http <port> [options]
 -t, --token <token>       auth token (env: WORMHOLE_TOKEN)            required
 -s, --server <host:port>  relay control server (env: WORMHOLE_SERVER)  default localhost:4443
 -n, --subdomain <name>    request a specific subdomain
-    --local-host <host>   host of the local app                        default 127.0.0.1
+    --local-host <host>   host of the local app                        default localhost
     --inspect-port <port> inspector dashboard port                      default 4040
     --no-inspect          do not start the inspector
     --secure              verify the relay's TLS certificate
@@ -340,7 +341,7 @@ certificate failure).
 ```ts
 interface TunnelClientOptions {
   serverHost: string; serverPort: number; token: string;
-  localPort: number; localHost?: string;          // default 127.0.0.1
+  localPort: number; localHost?: string;          // default localhost
   subdomain?: string;
   verifyCertificate?: boolean;                    // default false (self-signed dev relay)
   ca?: Buffer | string;
@@ -359,6 +360,7 @@ class TunnelClient extends EventEmitter {
   readonly state: ClientState
   readonly assigned: AssignPayload | undefined
   readonly streamCount: number
+  readonly streams: StreamEntry[]   // stream table snapshot: { id, openedAt }
   start(): Promise<AssignPayload>   // resolves on first ASSIGN, rejects only on a fatal error
   close(): void                     // closes all streams; no reconnect
 }
@@ -388,14 +390,16 @@ interface LocalTarget { host: string; port: number }
 interface ProxyStreamOptions {
   stream: Stream; target: LocalTarget; observer?: StreamObserver;
   connectTimeoutMs?: number;   // default 10000
+  reportError?: (error: ErrorPayload) => void;   // stream-level ERROR to the server
   onDone?: () => void;
 }
 proxyStream(options: ProxyStreamOptions): void
 ```
 
 Bridges one stream to one local TCP connection: queues `DATA` until connected,
-sends a `502 Bad Gateway` page if the local app is unreachable, closes each side
-when the other closes, and applies backpressure both ways.
+and if the local app is unreachable sends `ERROR { code: "LOCAL_DOWN" }` on the
+stream, a `502 Bad Gateway` page as `DATA`, then `CLOSE`. Closes each side when
+the other closes and applies backpressure both ways.
 
 ### `client/src/backoff.ts`
 

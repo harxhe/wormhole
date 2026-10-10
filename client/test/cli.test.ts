@@ -58,7 +58,7 @@ describe("wormhole http <port>", () => {
     ]);
 
     const banner = await cli.waitForOutput("Forwarding");
-    expect(banner).toContain(`http://cli.localhost:8080 -> http://127.0.0.1:${app.port}`);
+    expect(banner).toContain(`http://cli.localhost:8080 -> http://localhost:${app.port}`);
     expect(banner).toMatch(/Inspector\s+http:\/\/127\.0\.0\.1:\d+/);
 
     const response = await publicRequest(relay.publicPort, "cli", { path: "/from-cli" });
