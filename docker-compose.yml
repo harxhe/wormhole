@@ -5,14 +5,18 @@ services:
     restart: unless-stopped
     ports:
       - "4443:4443"
-      - "8080:8080"
+      # Keep the HTTP listener on loopback; a reverse proxy terminates TLS.
+      # Use "8080:8080" if you run Caddy in another container instead.
+      - "127.0.0.1:8080:8080"
       - "15000-15099:15000-15099/tcp"
     environment:
       WORMHOLE_CONFIG: /app/server/config.yaml
       WORMHOLE_LOG_LEVEL: info
     volumes:
       - ./server/config.yaml:/app/server/config.yaml:ro
-      - wormhole-certs:/app/server/certs
+      # Bind mount so certificates generated on the host are visible in the
+      # container (and survive rebuilds).
+      - ./server/certs:/app/server/certs
     healthcheck:
       test:
         - CMD
@@ -23,6 +27,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-
-volumes:
-  wormhole-certs:

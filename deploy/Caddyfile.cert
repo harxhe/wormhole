@@ -1,0 +1,23 @@
+# Public HTTPS termination using a certificate you already obtained, for
+# example with certbot's DNS challenge:
+#
+#   sudo certbot certonly --dns-cloudflare \
+#     --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+#     -d "*.tunnel.example.com" -d tunnel.example.com
+#
+# Environment:
+#   WORMHOLE_DOMAIN       e.g. tunnel.example.com
+#   WORMHOLE_CERT_DIR     e.g. /etc/letsencrypt/live/tunnel.example.com
+#
+# Run:
+#   WORMHOLE_DOMAIN=tunnel.example.com \
+#   WORMHOLE_CERT_DIR=/etc/letsencrypt/live/tunnel.example.com \
+#   caddy run --config deploy/Caddyfile.cert --adapter caddyfile
+#
+# If Caddy runs in Docker, mount the Let's Encrypt directory and change the
+# upstream to the relay container name (`relay:8080`).
+
+*.{$WORMHOLE_DOMAIN}, {$WORMHOLE_DOMAIN} {
+  tls {$WORMHOLE_CERT_DIR}/fullchain.pem {$WORMHOLE_CERT_DIR}/privkey.pem
+  reverse_proxy 127.0.0.1:8080
+}

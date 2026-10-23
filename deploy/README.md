@@ -67,6 +67,10 @@ run the client with `--secure` plus `--ca server/certs/server.crt`.
 
 ## 5. Public wildcard TLS with Caddy
 
+Choose one of two approaches.
+
+### A. Caddy obtains the wildcard certificate (DNS challenge)
+
 Install a Caddy build with your DNS provider module, e.g. Cloudflare:
 
 ```sh
@@ -75,11 +79,27 @@ xcaddy build --with github.com/caddy-dns/cloudflare
 
 Set `WORMHOLE_DOMAIN=tunnel.example.com`, `ACME_EMAIL=you@example.com` and
 `CF_API_TOKEN=...`, then run Caddy with [`Caddyfile`](./Caddyfile). Caddy
-obtains one wildcard certificate and proxies every tunnel subdomain to
-`relay:8080` (the compose service name).
+obtains one wildcard certificate and proxies every tunnel subdomain. The
+example upstream is `relay:8080` for running Caddy in the same compose network;
+change it to `127.0.0.1:8080` when Caddy runs on the host.
 
-If Caddy runs directly on the host instead of Docker, change
-`reverse_proxy relay:8080` to `reverse_proxy 127.0.0.1:8080`.
+### B. Use a certificate obtained with certbot
+
+Obtain a wildcard certificate with your DNS provider's certbot plugin, then use
+[`Caddyfile.cert`](./Caddyfile.cert):
+
+```sh
+sudo certbot certonly --dns-cloudflare \
+  --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+  -d "*.tunnel.example.com" -d tunnel.example.com
+
+WORMHOLE_DOMAIN=tunnel.example.com \
+WORMHOLE_CERT_DIR=/etc/letsencrypt/live/tunnel.example.com \
+caddy run --config deploy/Caddyfile.cert --adapter caddyfile
+```
+
+This avoids building a custom Caddy image. Renewal: `certbot renew` and reload
+Caddy.
 
 ## 6. Start the relay
 
@@ -91,11 +111,13 @@ docker compose logs -f relay
 The compose file publishes:
 
 - `4443` for the control listener
-- `8080` for the HTTP listener (Caddy can also reach it over the compose network)
+- `127.0.0.1:8080` for the HTTP listener (only the local reverse proxy can reach it)
 - `15000-15099` for raw TCP tunnels
 
-Edit the port range in both `docker-compose.yml` and `server/config.yaml` if you
-need more or fewer TCP tunnels.
+`server/certs/` is bind-mounted into the container, so the real control
+certificate copied in step 4 is visible to the relay. Edit the port range in
+both `docker-compose.yml` and `server/config.yaml` if you need more or fewer TCP
+tunnels.
 
 ## 7. Smoke test
 
