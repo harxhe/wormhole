@@ -9,13 +9,16 @@
     "transport",
     "server",
     "inspector",
-    "client"
+    "client",
+    "bench"
   ],
   "scripts": {
     "server": "npm run start --workspace @wormhole/server",
     "dev": "npm run dev --workspace @wormhole/server",
     "client": "npm run start --workspace @wormhole/client --",
     "gen-cert": "npm run gen-cert --workspace @wormhole/server",
+    "bench": "tsx bench/src/run.ts",
+    "bench:smoke": "tsx bench/src/run.ts --duration 1 --connections 1 --no-warmup",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json"

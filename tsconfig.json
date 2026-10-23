@@ -18,6 +18,7 @@
     "inspector/src/**/*.ts",
     "inspector/test/**/*.ts",
     "client/src/**/*.ts",
-    "client/test/**/*.ts"
+    "client/test/**/*.ts",
+    "bench/src/**/*.ts"
   ]
 }

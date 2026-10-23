@@ -1,0 +1,11 @@
+{
+  "name": "@wormhole/bench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Wormhole latency and throughput benchmarks",
+  "scripts": {
+    "start": "tsx src/run.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}
