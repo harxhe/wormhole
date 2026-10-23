@@ -34,7 +34,7 @@ The relay and client are functional end to end:
 - live inspector with request replay
 - Docker image and a Caddy-based wildcard-TLS deployment guide
 - benchmark harness with latency/throughput results and charts
-- 133 automated tests
+- 134 automated tests
 
 See [`progress.md`](./progress.md) for the current checklist and handoff notes.
 

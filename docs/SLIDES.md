@@ -117,7 +117,7 @@ Use cases: databases, SSH, custom protocols.
 
 ## Testing
 
-- **133 automated tests**, 16 files
+- **134 automated tests**, 16 files
 - Protocol round trips with split/merged chunks
 - Mux, heartbeat, backpressure
 - 50 concurrent requests, 2 MB down / 300 KB up

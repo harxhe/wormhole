@@ -8,7 +8,7 @@ Three terminals in the repo root:
 
 ```sh
 npm install
-npm test            # optional: 133 tests
+npm test            # optional: 134 tests
 npm run server      # terminal 1
 ```
 
@@ -119,4 +119,4 @@ Then repeat step 1. For wildcard HTTPS and a VPS, show
 - Reconnect with stable HTTP subdomain
 - Limits and graceful shutdown
 - Benchmarks: `bench/results/latest.md`
-- 133 tests, strict TypeScript, Docker image
+- 134 tests, strict TypeScript, Docker image

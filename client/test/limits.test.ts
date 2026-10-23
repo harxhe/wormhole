@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { TunnelClient } from "../src/index.ts";
+import { TunnelClient, TunnelError } from "../src/index.ts";
 import type { TunnelClientOptions } from "../src/index.ts";
 import { TEST_TOKEN, cleanups, publicRequest, runCleanups, sleep, startLocalApp, startRelay } from "./support/relay.ts";
 
@@ -51,5 +51,23 @@ describe("per-tunnel limits", () => {
     const second = await publicRequest(relay.publicPort, "rate");
     expect(second.status).toBe(429);
     expect(second.text).toContain("rate limit");
+  });
+
+  it("fails without retrying when the token tunnel cap is reached", async () => {
+    const relay = await startRelay(undefined, {
+      limits: { maxTunnelsPerToken: 1 }
+    });
+    const app = await startLocalApp();
+    const first = startClient({ serverPort: relay.controlPort, localPort: app.port, subdomain: "first" });
+    await first.start();
+
+    const second = startClient({ serverPort: relay.controlPort, localPort: app.port, subdomain: "second" });
+    const reconnects: unknown[] = [];
+    second.on("reconnecting", (event) => reconnects.push(event));
+
+    const err = (await second.start().catch((error: unknown) => error)) as TunnelError;
+    expect(err).toBeInstanceOf(TunnelError);
+    expect(err.code).toBe("TOO_MANY_TUNNELS");
+    expect(reconnects).toHaveLength(0);
   });
 });

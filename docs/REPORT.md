@@ -83,7 +83,7 @@ connection itself stays open. TCP limits refuse the public connection.
 
 ## Testing
 
-- `npm test`: **133 tests** across protocol, transport, server, inspector and
+- `npm test`: **134 tests** across protocol, transport, server, inspector and
   client, including end-to-end tests against the real relay.
 - `npm run typecheck`: clean under strict TypeScript.
 - Real-process smoke test: `npm run server`, `wormhole http`, `wormhole tcp`,

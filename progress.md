@@ -85,7 +85,7 @@ Current state of the Wormhole implementation.
 
 ## Verification
 
-- [x] `npm test` — **133 tests passing** across 16 files
+- [x] `npm test` — **134 tests passing** across 16 files
 - [x] `npm run typecheck` — clean
 - [x] Real-process smoke test: server + HTTP client + TCP client
 - [x] Docker image builds and the relay starts in a container

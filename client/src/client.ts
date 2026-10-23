@@ -24,7 +24,13 @@ export const DEFAULT_HANDSHAKE_TIMEOUT_MS = 10_000;
  * Server `ERROR` codes that retrying cannot fix. Any other failure (network
  * error, heartbeat timeout, server restart) triggers a reconnect.
  */
-const FATAL_SERVER_CODES = new Set(["BAD_TOKEN", "BAD_AUTH", "UNSUPPORTED", "BAD_SUBDOMAIN"]);
+const FATAL_SERVER_CODES = new Set([
+  "BAD_TOKEN",
+  "BAD_AUTH",
+  "UNSUPPORTED",
+  "BAD_SUBDOMAIN",
+  "TOO_MANY_TUNNELS"
+]);
 
 /** TLS verification failures are configuration problems, not transient ones. */
 const FATAL_TLS_CODES = new Set([
