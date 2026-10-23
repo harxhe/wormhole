@@ -146,12 +146,13 @@ interface ParsedRequestHead { method: string; target: string; version: string; h
 parseRequestHead(buffer: Buffer): ParsedRequestHead | null
 getHeader(headers: [string, string][], name: string): string | undefined
 serializeRequestHead(head: ParsedRequestHead): Buffer
-renderResponse(status: number, title: string, message: string): Buffer
+renderResponse(status: number, title: string, message: string, headers?: Record<string, string>): Buffer
 ```
 
 `parseRequestHead` returns `null` until the `\r\n\r\n` terminator is present or
 if the request is malformed. `serializeRequestHead` forces `Connection: close`
-so each stream carries exactly one request/response.
+so each stream carries exactly one request/response. `renderResponse` adds any
+extra headers after the fixed ones (used for `Retry-After` on `429`).
 
 ### `transport/src/logger.ts`
 
@@ -174,7 +175,15 @@ Relay server. Entry point: `server/src/index.ts`.
 class ConfigError extends Error {}
 interface CertConfig { dir: string; keyPath: string; certPath: string; commonName: string; altNames: string[]; days: number }
 interface HeartbeatConfig { intervalMs: number; timeoutMs: number }
-interface Config { controlPort: number; httpPort: number; publicHost: string; tokens: Set<string>; heartbeat: HeartbeatConfig; cert: CertConfig }
+interface LimitsConfig { maxStreamsPerTunnel: number; maxTunnelsPerToken: number; requestsPerMinute: number }
+interface TcpConfig { enabled: boolean; bindHost: string; portStart: number; portEnd: number }
+type PublicScheme = "http" | "https"
+interface Config {
+  controlPort: number; httpPort: number; publicHost: string;
+  publicScheme: PublicScheme; publicPort: number;
+  tokens: Set<string>; heartbeat: HeartbeatConfig; limits: LimitsConfig;
+  tcp: TcpConfig; cert: CertConfig;
+}
 
 parseConfig(raw: unknown, options: { baseDir: string }): Config
 loadConfig(path: string): Config
@@ -184,6 +193,10 @@ loadConfig(path: string): Config
   with a descriptive message on any problem.
 - `parseConfig` is the pure validator, useful in tests.
 - Relative cert paths are resolved against `options.baseDir`.
+- `limits` and `tcp` are optional in YAML and fall back to safe defaults. A
+  limit of `0` disables that particular cap.
+- `publicScheme`/`publicPort` control the URL sent in `ASSIGN`; use
+  `https`/`443` when a reverse proxy terminates TLS.
 
 ### `server/src/paths.ts`
 
@@ -209,19 +222,75 @@ are missing, then returns them as buffers.
 CLI (invoked by `npm run gen-cert`) that ensures the certificate exists.
 Accepts an optional config path as the first argument.
 
+### `server/src/limits.ts`
+
+```ts
+interface LimitDecision { allowed: boolean; retryAfterMs: number }
+class SlidingWindowLimiter {
+  constructor(limit: number, windowMs?: number)   // windowMs default 60000
+  take(now?: number): LimitDecision
+}
+
+type TunnelLimitCode = "TOO_MANY_STREAMS" | "RATE_LIMITED" | "TOO_MANY_TUNNELS"
+class TunnelLimitError extends Error {
+  readonly code: TunnelLimitCode
+  readonly retryAfterMs: number
+}
+```
+
+A sliding-window limiter with bounded memory (`limit <= 0` disables it) and the
+error type used by the registry/public listeners.
+
+### `server/src/ports.ts`
+
+```ts
+class PortPool {
+  constructor(start: number, end: number)
+  readonly size: number
+  readonly inUse: number
+  acquire(): number | undefined
+  release(port: number): void
+}
+```
+
+Hands out public TCP ports from an inclusive range and reuses released ports.
+
 ### `server/src/registry.ts`
 
 ```ts
-interface TunnelSession { subdomain: string; type: TunnelType; openStream(): Stream }
+interface TunnelSession {
+  subdomain: string; type: TunnelType; token: string;
+  readonly streamCount: number;
+  openStream(): Stream;
+  close(): void | Promise<void>;
+}
+
+interface TunnelOptions {
+  subdomain: string; type: TunnelType; token: string;
+  limits: LimitsConfig; openStream: () => Stream;
+  close?: () => void | Promise<void>;
+}
+
+class Tunnel implements TunnelSession {
+  constructor(options: TunnelOptions)
+  readonly streamCount: number
+  openStream(): Stream     // throws TunnelLimitError at the stream/rate cap
+  close(): void
+}
+
+interface RegistryOptions { maxTunnelsPerToken?: number }
 
 class TunnelRegistry {
+  constructor(options?: RegistryOptions)
   readonly size: number
   has(subdomain: string): boolean
   get(subdomain: string): TunnelSession | undefined
-  add(tunnel: TunnelSession): void        // throws if the subdomain is taken
-  remove(subdomain: string): void
+  countForToken(token: string): number
+  add(tunnel: TunnelSession): void        // throws if taken or token cap reached
+  remove(subdomain: string): void         // also closes the tunnel
+  closeAll(): Promise<void>               // graceful shutdown
   subdomains(): string[]
-  generateSubdomain(): string             // unused, human-friendly name
+  generateSubdomain(): string
 }
 
 isValidSubdomain(value: string): boolean
@@ -234,12 +303,15 @@ Pure helpers for public-host routing.
 ```ts
 stripPort(host: string): string
 publicHostname(subdomain: string, config: { publicHost: string }): string
-publicUrl(subdomain: string, config: { publicHost: string; httpPort: number }): string
+publicUrl(subdomain: string, config: { publicHost: string; publicScheme?: "http" | "https"; publicPort?: number; httpPort?: number }): string
+publicTcpUrl(port: number, config: { publicHost: string }): string
 subdomainFromHost(hostHeader: string | undefined, publicHost: string): string | null
 ```
 
 `subdomainFromHost` returns `null` for the bare public host or an unrelated
-host, and validates that the extracted label is a legal subdomain.
+host, and validates that the extracted label is a legal subdomain. `publicUrl`
+omits the port for `http:80` and `https:443`; `publicTcpUrl` returns
+`tcp://host:port`.
 
 ### `server/src/control.ts`
 
@@ -255,20 +327,24 @@ createControlServer(options: ControlServerOptions): Server
 
 Creates the TLS control listener. Each connection is wrapped in a `Mux`. The
 first frame must be `AUTH`; on success the server registers the tunnel and
-replies `ASSIGN` with `{ subdomain, url }`. Failures send an `ERROR` frame with
-one of these codes:
+replies `ASSIGN` with `{ subdomain, url }` for HTTP or
+`{ subdomain, port, url }` for TCP. Failures send an `ERROR` frame with one of
+these codes:
 
 | Code | Cause |
 |---|---|
 | `AUTH_TIMEOUT` | No `AUTH` within `authTimeoutMs` |
 | `BAD_AUTH` | Malformed `AUTH` payload |
 | `BAD_TOKEN` | Token not in `config.tokens` |
-| `UNSUPPORTED` | Non-HTTP tunnel type |
+| `UNSUPPORTED` | TCP tunnel requested while `tcp.enabled` is false |
 | `BAD_SUBDOMAIN` | Invalid requested subdomain |
 | `SUBDOMAIN_TAKEN` | Requested subdomain already in use |
+| `TOO_MANY_TUNNELS` | The token owns its configured number of tunnels |
+| `TUNNEL_UNAVAILABLE` | A TCP listener could not be created (e.g. port range exhausted) |
 | `ALREADY_AUTH` | A second `AUTH` was sent |
 
-The tunnel is unregistered from the registry when the connection closes.
+The tunnel is unregistered from the registry when the connection closes. TCP
+tunnels also close their public listener and release their port.
 
 ### `server/src/public.ts`
 
@@ -286,8 +362,22 @@ raw HTTP/1.1 bytes. Responses stream back to the public socket.
 | No matching subdomain / bare host | `404` |
 | Registered tunnel missing | `404` |
 | Tunnel cannot open a stream | `502` |
+| Tunnel stream/rate cap reached | `429` with `Retry-After` |
 | Stream closes without any data | `502` |
 | Headers exceed 64 KB | `400` |
+
+### `server/src/public-tcp.ts`
+
+```ts
+interface TcpTunnelOptions { bindHost: string; port: number; openStream: () => Stream }
+interface TcpTunnel { readonly port: number; close(): Promise<void> }
+listenTcpTunnel(options: TcpTunnelOptions): Promise<TcpTunnel>
+```
+
+Creates one public TCP listener per tunnel. Every accepted connection opens a
+stream and bridges bytes in both directions, with the same connection-wide
+backpressure rules as HTTP streams. The caller allocates the port and releases
+it when the tunnel closes.
 
 ### `server/src/mock-client.ts`
 
@@ -317,8 +407,9 @@ CLI wrapper around `startMockClient` (`npm run mock-client --workspace @wormhole
 ### `server/src/index.ts`
 
 Bootstrap. Loads config, ensures the certificate, starts the control and public
-listeners, and handles `SIGINT`/`SIGTERM`. Config path override:
-`WORMHOLE_CONFIG`.
+listeners, tracks active sockets, and handles `SIGINT`/`SIGTERM` by draining
+tunnels and closing listeners (bounded by a 3 s timer). Config path override:
+`WORMHOLE_CONFIG`. Set `WORMHOLE_TLS_KEYLOG` to append TLS secrets for Wireshark.
 
 ## `@wormhole/client`
 
@@ -330,26 +421,29 @@ Tunnel client and CLI. Entry points: `client/src/index.ts` (library) and
 
 ```
 wormhole http <port> [options]
+wormhole tcp <port> [options]
 
 -t, --token <token>       auth token (env: WORMHOLE_TOKEN)            required
 -s, --server <host:port>  relay control server (env: WORMHOLE_SERVER)  default localhost:4443
 -n, --subdomain <name>    request a specific subdomain
     --local-host <host>   host of the local app                        default localhost
-    --inspect-port <port> inspector dashboard port                      default 4040
-    --no-inspect          do not start the inspector
+    --inspect-port <port> inspector dashboard port (http only)         default 4040
+    --no-inspect          do not start the inspector (http only)
     --secure              verify the relay's TLS certificate
     --ca <file>           trust this certificate (implies --secure)
     --no-reconnect        exit instead of reconnecting
 ```
 
-Exit code `0` on Ctrl+C, `1` on a fatal error (bad token, subdomain taken,
-certificate failure).
+`http` prints a public URL and starts the inspector; `tcp` prints a public
+`tcp://host:port` endpoint and bridges raw connections. Exit code `0` on
+Ctrl+C, `1` on a fatal error (bad token, subdomain taken, certificate failure).
 
 ### `client/src/client.ts`
 
 ```ts
 interface TunnelClientOptions {
   serverHost: string; serverPort: number; token: string;
+  type?: "http" | "tcp";                          // default http
   localPort: number; localHost?: string;          // default localhost
   subdomain?: string;
   verifyCertificate?: boolean;                    // default false (self-signed dev relay)
@@ -403,12 +497,15 @@ interface ProxyStreamOptions {
   onDone?: () => void;
 }
 proxyStream(options: ProxyStreamOptions): void
+proxyRawStream(options: ProxyStreamOptions): void
 ```
 
-Bridges one stream to one local TCP connection: queues `DATA` until connected,
-and if the local app is unreachable sends `ERROR { code: "LOCAL_DOWN" }` on the
-stream, a `502 Bad Gateway` page as `DATA`, then `CLOSE`. Closes each side when
-the other closes and applies backpressure both ways.
+`proxyStream` bridges one stream to one local TCP connection for HTTP: queues
+`DATA` until connected, and if the local app is unreachable sends
+`ERROR { code: "LOCAL_DOWN" }` on the stream, a `502 Bad Gateway` page as
+`DATA`, then `CLOSE`. Closes each side when the other closes and applies
+backpressure both ways. `proxyRawStream` is the TCP variant: no HTTP parsing or
+502 page, just raw bytes and `LOCAL_DOWN` + `CLOSE` on failure.
 
 ### `client/src/backoff.ts`
 
@@ -511,3 +608,39 @@ parseResponseHead(buffer: Buffer): ResponseHead | null
 getHeader(headers: [string, string][], name: string): string | undefined
 decodeChunked(body: Buffer): Buffer | null
 ```
+
+## `@wormhole/bench`
+
+Benchmark harness. Entry point: `bench/src/run.ts` (`npm run bench`).
+
+### `bench/src/load.ts`
+
+```ts
+interface LoadOptions {
+  scenario: string; target: "direct" | "tunnel";
+  url: string; headers: Record<string, string>;
+  connections: number; durationSeconds: number;
+  method?: "GET" | "POST"; body?: Buffer;
+}
+measure(options: LoadOptions): Promise<Measurement>
+```
+
+Runs `connections` workers for `durationSeconds`. Every request opens a new
+connection (`agent: false`) because the tunnel's public listener forces
+`Connection: close`; the direct baseline does the same for a fair comparison.
+Reports requests/second, p50/p99/max latency, MB/s, errors, timeouts and
+non-2xx responses.
+
+### `bench/src/relay.ts`
+
+```ts
+startRelay(): Promise<BenchRelay>       // control + public listeners, limits off
+startApp(body: Buffer): Promise<BenchApp>
+startClient(options: { controlPort; localPort; subdomain }): Promise<TunnelClient>
+```
+
+### `bench/src/report.ts` / `bench/src/svg.ts`
+
+`writeReport(report, outDir)` writes `latest.json`, `latest.md` and the SVG
+charts. `barChart({ title, unit, series, groups })` is a dependency-free grouped
+bar chart renderer.

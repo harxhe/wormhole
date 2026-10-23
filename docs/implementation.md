@@ -63,11 +63,11 @@ Rules: control frames use StreamID `0`, server-created streams use odd IDs, and 
 
 ### Handoff checklist (before starting Phase 1)
 
-- [ ] Server starts with `npm run server`, and the README says how
-- [ ] `PROTOCOL.md` is complete and protocol tests pass
-- [ ] A sample `curl` command proves routing works
-- [ ] README lists the test token, ports, and config
-- [ ] Everything is committed to `main`, with empty `client/` and `inspector/` folders ready
+- [x] Server starts with `npm run server`, and the README says how
+- [x] `PROTOCOL.md` is complete and protocol tests pass
+- [x] A sample `curl` command proves routing works
+- [x] README lists the test token, ports, and config
+- [x] Everything is committed to `main`, with empty `client/` and `inspector/` folders ready
 
 ---
 
@@ -85,9 +85,9 @@ Rules: control frames use StreamID `0`, server-created streams use odd IDs, and 
 
 ### Handoff back (before starting Phase 2)
 
-- [ ] Branch merged to `main`, with a README section on running the client
-- [ ] List of known bugs or unfinished items
-- [ ] Short note on client design in `docs/` (reusable in the report)
+- [x] Branch merged to `main`, with a README section on running the client
+- [x] List of known bugs or unfinished items
+- [x] Short note on client design in `docs/` (reusable in the report)
 
 ---
 
@@ -104,6 +104,20 @@ Rules: control frames use StreamID `0`, server-created streams use odd IDs, and 
 | Demo recording and README | |
 | Merge report sections and slides | Include P2's client and inspector part |
 | Final run-through | |
+
+### Completion status
+
+- [x] Server-side heartbeat and dead-session cleanup
+- [x] Raw TCP tunnels and rate limits
+- [~] Deploy to VPS — Docker image, compose, production config and Caddy wildcard
+  TLS guide are ready; an actual VPS/DNS run is environment-dependent
+- [x] Integration test with the real client
+- [x] Benchmarks (loopback; `tc netem` helper included)
+- [~] Wireshark captures — capture scripts, TLS key log support and a guide are
+  included; generating a `.pcap` requires Wireshark/dumpcap on the machine
+- [x] Demo script and README (video recording is environment-dependent)
+- [x] Report sections and slides (`docs/REPORT.md`, `docs/SLIDES.md`)
+- [x] Final run-through
 
 ---
 

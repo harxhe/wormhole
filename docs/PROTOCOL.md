@@ -51,16 +51,20 @@ this; senders split larger byte streams into multiple frames.
 
 ### `AUTH`
 
-The first frame the client sends after connecting. `type` is `"http"` or
-`"tcp"`. `token` is validated by the server against its configured tokens;
-an unknown token yields an `ERROR` frame followed by connection close.
-`subdomain` is an optional requested name; when omitted the server assigns a
-random one.
+The first frame the client sends after connecting. `type` is `"http"` or `"tcp"`.
+`token` is validated by the server against its configured tokens; an unknown
+token yields an `ERROR` frame followed by connection close. `subdomain` is an
+optional requested name; when omitted the server assigns a random one. `port` is
+the client's local port and is informational only.
+
+For `"tcp"` tunnels the server creates a public TCP listener on a free port from
+its configured range and returns that port in `ASSIGN`.
 
 ### `ASSIGN`
 
 The server's reply to a valid `AUTH`. For HTTP tunnels the payload is
-`{ subdomain, url }`; for TCP tunnels it is `{ subdomain, port }`.
+`{ subdomain, url }`; for TCP tunnels it is `{ subdomain, port, url }`, where
+`url` looks like `tcp://relay.example.com:15001`.
 
 ### `OPEN`
 
@@ -70,7 +74,8 @@ the server originates public traffic, it also allocates stream IDs.
 ### `DATA`
 
 Carries raw bytes for one stream. The protocol is transport-agnostic: HTTP
-tunnels put a serialized HTTP/1.1 request or response on the stream.
+tunnels put a serialized HTTP/1.1 request or response on the stream, while TCP
+tunnels put arbitrary bytes on it.
 
 ### `CLOSE`
 
@@ -87,8 +92,13 @@ dead and is closed, along with all its streams.
 ### `ERROR`
 
 Reports a connection- or stream-level failure. `code` is a short machine
-identifier (e.g. `BAD_TOKEN`, `NO_TUNNEL`, `LOCAL_DOWN`); `message` is human
-readable.
+identifier (e.g. `BAD_TOKEN`, `NO_TUNNEL`, `LOCAL_DOWN`, `TOO_MANY_TUNNELS`),
+and `message` is human readable.
+
+The relay may reject an `AUTH` with `TOO_MANY_TUNNELS` when one token already
+owns its configured number of tunnels. Per-tunnel stream and request-rate caps
+are enforced by the public listener and surface to HTTP clients as `429 Too Many
+Requests`; the tunnel connection stays open.
 
 ## Stream IDs
 

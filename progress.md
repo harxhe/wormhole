@@ -11,103 +11,110 @@ Current state of the Wormhole implementation.
 ## Foundation
 
 - [x] Monorepo skeleton (npm workspaces, TypeScript, vitest)
+- [x] Shared `@wormhole/transport` package (mux, HTTP helpers, logger)
 
 ## Protocol
 
 - [x] Frame constants and types
 - [x] `encodeFrame`
 - [x] `FrameDecoder` (partial and merged chunks)
-- [x] Round-trip tests (13 passing)
+- [x] Round-trip tests
 - [x] `docs/PROTOCOL.md`
+- [x] HTTP and raw TCP tunnel semantics documented
 
 ## Server core
 
-- [x] Config loader (`config.yaml`)
+- [x] Config loader (`config.yaml`) with defaults and validation
 - [x] Self-signed certificate generation
 - [x] TLS control listener
 - [x] `AUTH` with static tokens
-- [x] `ASSIGN` random subdomain
+- [x] `ASSIGN` random/requested subdomain
 - [x] Tunnel registry
 - [x] Public HTTP listener with `Host` routing
-- [x] 404 / 502 pages
+- [x] 404 / 429 / 502 pages
 - [x] Multiplexer (stream IDs, `OPEN`/`DATA`/`CLOSE`)
 - [x] Backpressure handling
+- [x] Heartbeat and dead-session cleanup
+- [x] Graceful shutdown with socket tracking
 - [x] Mock client for end-to-end verification
 
-### Verification
+## Limits and raw TCP
 
-- [x] `npm test` — 61 tests passing (protocol, config, mux, registry, hosts, http, control, public, e2e)
-- [x] `npx tsc --noEmit` — clean
-- [x] `curl -H "Host: demo.localhost" http://localhost:8080/` returns the local app's response
-- [x] Unknown host returns `404`
+- [x] Per-tunnel concurrent stream cap
+- [x] Per-tunnel request-rate limit (sliding window)
+- [x] Per-token active-tunnel cap
+- [x] `429 Too Many Requests` with `Retry-After`
+- [x] Raw TCP tunnel type in `AUTH`/`ASSIGN`
+- [x] Per-tunnel public TCP listeners
+- [x] Public TCP port allocator with reuse
+- [x] `wormhole tcp <port>` CLI
+- [x] Raw stream bridge with `LOCAL_DOWN` handling
 
-## Client (Phase 1)
+## Client
 
-- [x] CLI: `wormhole http <port>`, `--token`, `--server` (commander)
-- [x] TLS connect, `AUTH`, parse `ASSIGN`, print the public URL
+- [x] CLI: `wormhole http <port>`, `wormhole tcp <port>`, `--token`, `--server`
+- [x] TLS connect, `AUTH`, parse `ASSIGN`, print the public endpoint
 - [x] Handle `OPEN`: dial `localhost:PORT`, queue `DATA` until connected
-- [x] Stream table (one entry per stream): local data to 16 KB `DATA` frames, `CLOSE`, `502` + `ERROR LOCAL_DOWN` if the local app is down
+- [x] Stream table (one entry per stream)
+- [x] 16 KB `DATA` frames, `CLOSE`, HTTP `502`, TCP `LOCAL_DOWN`
 - [x] Heartbeat: reply `PONG`, detect 30 s silence
 - [x] Auto-reconnect with exponential backoff, same subdomain on retry
-- [x] Inspector on `:4040`: method, path, status, timing, live updates over `ws`, replay button
+- [x] Inspector on `:4040`: method, path, status, timing, live updates, replay
 
-### Verification
+## Deployment
 
-- [x] `npm test` — 105 tests passing (61 server/protocol + 44 client/inspector)
-- [x] 50 concurrent requests over one tunnel connection
-- [x] 2 MB response and 300 KB upload split into 16 KB frames
-- [x] `502` when the local app is down; tunnel stays up
-- [x] Reconnect after a server restart keeps the same subdomain
-- [x] `npx tsc --noEmit` — clean for root and every workspace
+- [x] Dockerfile and `.dockerignore`
+- [x] `docker-compose.yml` with healthcheck and persistent cert volume
+- [x] Production config example (`deploy/config.production.yaml`)
+- [x] Caddy wildcard-TLS example (`deploy/Caddyfile`)
+- [x] Deployment guide: DNS, Let's Encrypt, firewall, control certificate,
+  operations (`deploy/README.md`)
+- [x] HTTP public URL scheme/port override for reverse-proxy TLS
+- [x] TLS key log support for Wireshark (`WORMHOLE_TLS_KEYLOG`)
 
-## Deployment and evaluation
+## Evaluation
 
-- [ ] Docker deployment
-- [ ] Benchmarks
-- [ ] Packet captures
+- [x] Benchmark harness (`bench/`)
+- [x] Latency/throughput for 1/10/50/100 connections
+- [x] 1 MiB download and 300 KiB upload scenarios
+- [x] JSON, Markdown and SVG chart output
+- [x] `tc netem` helper script
+- [x] Wireshark capture scripts and guide (`docs/CAPTURE.md`)
+- [x] Report (`docs/REPORT.md`), demo script (`docs/DEMO.md`), slides
+  (`docs/SLIDES.md`)
 
-## Handoff checklist (Phase 0 → Phase 1)
+## Verification
 
-- [x] Server starts with `npm run server` (documented in the README)
-- [x] `docs/PROTOCOL.md` complete and protocol tests pass
-- [x] A sample `curl` command proves routing works
-- [x] README lists the test token, ports, and config
-- [x] Committed to `main`, with empty `client/` and `inspector/` folders ready
+- [x] `npm test` — **133 tests passing** across 16 files
+- [x] `npm run typecheck` — clean
+- [x] Real-process smoke test: server + HTTP client + TCP client
+- [x] Docker image builds and the relay starts in a container
+- [x] Unknown host returns `404`
+- [x] Benchmark results written to `bench/results/`
 
-## Handoff back checklist (Phase 1 → Phase 2)
+## Known limitations
 
-- [x] Branch merged to `main` (PR #1, README section on running the client: done)
-- [x] List of known bugs or unfinished items ([`docs/CLIENT.md`](./docs/CLIENT.md#known-issues-and-unfinished-items))
-- [x] Short note on client design in `docs/` ([`docs/CLIENT.md`](./docs/CLIENT.md))
+- One HTTP request per stream; no keep-alive or WebSocket upgrade through a
+  single stream.
+- Backpressure is connection-wide, so one slow stream pauses all streams.
+- TCP tunnels receive a new public port after a reconnect.
+- TLS verification is off by default for the self-signed development relay.
+- The inspector keeps the last 200 requests in memory and has no automated
+  browser tests.
+- Benchmarks run on loopback; a VPS run with `tc netem` and an ngrok comparison
+  is still future work.
 
 ## Handoff notes
 
-- The protocol is frozen; coordinate any change before editing
-  [`docs/PROTOCOL.md`](./docs/PROTOCOL.md).
-- The public listener speaks **raw HTTP/1.1** and forces `Connection: close`, so
-  each stream is exactly one request/response. Keep-alive is out of scope.
-- `server/src/mock-client.ts` is a throwaway client for local verification only;
-  it is not the deliverable CLI.
+- The protocol is documented in [`docs/PROTOCOL.md`](./docs/PROTOCOL.md);
+  coordinate any wire change there first.
+- The public HTTP listener speaks **raw HTTP/1.1** and forces
+  `Connection: close`, so each stream is exactly one request/response.
+- `server/src/mock-client.ts` is a throwaway client used by server tests; the
+  real deliverable is `@wormhole/client`.
 - Backpressure is connection-wide: a single slow public socket pauses the shared
-  control socket for all streams (simple flow control, acceptable for now).
-
-### Phase 1 notes
-
-- `/protocol` is unchanged. The client and server share `Mux`, the HTTP helpers
-  and the logger through the new [`@wormhole/transport`](./transport/README.md)
-  package; the client no longer depends on `@wormhole/server`.
-- `server/src/mock-client.ts` is superseded by the real client and can be
-  removed in Phase 2 (the server e2e tests still use it).
-- Phase 2 server-side dead-session cleanup also speeds up reconnects: after an
-  abrupt network loss the client keeps retrying on `SUBDOMAIN_TAKEN` until the
-  server frees its old name (up to the 30 s heartbeat timeout).
-- For the benchmarks: run the client with `--no-inspect` to measure the tunnel
-  alone.
-
-### Post-merge cleanup (resolved review items)
-
-- Extracted `@wormhole/transport` (`Mux`, `Stream`, HTTP helpers, logger) so the
-  client no longer reaches into `server/src`; dependency direction is now
-  `protocol ← transport ← {server, client}`.
-- Declared `tsx` as a dependency of the client (its `bin` runs TS directly).
-- `ws` is imported lazily by the inspector, so `--no-inspect` no longer loads it.
+  control socket for all streams.
+- For benchmarks, run the client with the inspector disabled; the harness does
+  this automatically.
+- `WORMHOLE_TLS_KEYLOG` writes TLS secrets for packet capture. Never commit the
+  key log.
