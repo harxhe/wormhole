@@ -142,3 +142,7 @@ Client                                   Server
   |<-- PING ------ every 10s -------------->|
   |--- PONG ------------------------------>|
 ```
+
+For a TCP tunnel the only difference is the `AUTH.type` (`"tcp"`) and the
+`ASSIGN` payload (`{ subdomain, port, url }`). Public clients connect to the
+assigned port; `DATA` carries raw bytes instead of HTTP/1.1.
