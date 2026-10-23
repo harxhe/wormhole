@@ -15,7 +15,7 @@ Wormhole is a self-hosted reverse tunnel (an ngrok alternative) built with Node.
 | CLI | `commander` |
 | Inspector | `ws` + plain HTML/JS |
 | Testing | `vitest` |
-| Benchmarks | `autocannon`, `tc netem`, Wireshark, matplotlib |
+| Benchmarks | built-in HTTP load generator, `tc netem`, Wireshark, SVG charts |
 | Deployment | VPS, wildcard DNS, Let's Encrypt, Docker |
 
 ## Repo Structure
