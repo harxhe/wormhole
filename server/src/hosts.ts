@@ -1,4 +1,4 @@
-import type { Config } from "./config.ts";
+import type { Config, PublicScheme } from "./config.ts";
 import { isValidSubdomain } from "./registry.ts";
 
 /** Remove a trailing `:port` from a Host header value. */
@@ -13,10 +13,30 @@ export function publicHostname(subdomain: string, config: Pick<Config, "publicHo
   return `${subdomain}.${config.publicHost}`;
 }
 
+export interface PublicUrlConfig {
+  publicHost: string;
+  /** Defaults to `http` for callers that predate HTTPS support. */
+  publicScheme?: PublicScheme;
+  /** Advertised port; falls back to `httpPort`. */
+  publicPort?: number;
+  httpPort?: number;
+}
+
+function isDefaultPort(scheme: PublicScheme, port: number): boolean {
+  return (scheme === "http" && port === 80) || (scheme === "https" && port === 443);
+}
+
 /** Public URL advertised to a client in an `ASSIGN` frame. */
-export function publicUrl(subdomain: string, config: Pick<Config, "publicHost" | "httpPort">): string {
-  const port = config.httpPort === 80 ? "" : `:${config.httpPort}`;
-  return `http://${publicHostname(subdomain, config)}${port}`;
+export function publicUrl(subdomain: string, config: PublicUrlConfig): string {
+  const scheme = config.publicScheme ?? "http";
+  const port = config.publicPort ?? config.httpPort ?? (scheme === "https" ? 443 : 80);
+  const portSuffix = isDefaultPort(scheme, port) ? "" : `:${port}`;
+  return `${scheme}://${publicHostname(subdomain, config)}${portSuffix}`;
+}
+
+/** Public endpoint advertised for a raw TCP tunnel. */
+export function publicTcpUrl(port: number, config: Pick<Config, "publicHost">): string {
+  return `tcp://${config.publicHost}:${port}`;
 }
 
 /**

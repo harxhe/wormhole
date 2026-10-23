@@ -9,9 +9,27 @@ httpPort: 8080
 # Hostname used to build the public URL shown to clients and in ASSIGN.
 publicHost: localhost
 
+# Scheme and port advertised in ASSIGN. Set scheme to https and port to 443
+# when a reverse proxy (see deploy/Caddyfile) terminates TLS in production.
+publicScheme: http
+publicPort: 8080
+
 # Static tokens accepted from clients. Replace these with long random values.
 tokens:
   - dev-token-please-change
+
+# Per-tunnel safety limits. Set a value to 0 to disable that limit.
+limits:
+  maxStreamsPerTunnel: 50
+  maxTunnelsPerToken: 5
+  requestsPerMinute: 600
+
+# Raw TCP tunnels: each tunnel gets one public port from this range.
+tcp:
+  enabled: true
+  bindHost: 0.0.0.0
+  portStart: 15000
+  portEnd: 15099
 
 # Self-signed certificate for the control listener (generated on first run).
 cert:

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { Command, InvalidArgumentError, Option } from "commander";
+import type { AssignPayload, TunnelType } from "@wormhole/protocol";
 import { DEFAULT_INSPECTOR_PORT, RequestStore, startInspectorServer } from "@wormhole/inspector";
 import type { InspectorServer, RequestSummary } from "@wormhole/inspector";
 import { TunnelClient } from "./client.ts";
@@ -7,16 +8,19 @@ import type { TunnelError } from "./client.ts";
 
 const DEFAULT_SERVER = "localhost:4443";
 
-interface HttpCommandOptions {
+interface BaseOptions {
   token?: string;
   server: string;
   subdomain?: string;
   localHost: string;
-  inspect: boolean;
-  inspectPort: number;
   secure: boolean;
   ca?: string;
   reconnect: boolean;
+}
+
+interface HttpOptions extends BaseOptions {
+  inspect: boolean;
+  inspectPort: number;
 }
 
 function parsePort(value: string): number {
@@ -45,6 +49,19 @@ function parseServer(value: string): { host: string; port: number } {
   return { host: host.replace(/^\[|\]$/g, ""), port };
 }
 
+function addConnectionOptions(command: Command): Command {
+  return command
+    .addOption(new Option("-t, --token <token>", "auth token").env("WORMHOLE_TOKEN"))
+    .addOption(
+      new Option("-s, --server <host:port>", "relay control server").default(DEFAULT_SERVER).env("WORMHOLE_SERVER")
+    )
+    .option("-n, --subdomain <name>", "request a specific subdomain")
+    .option("--local-host <host>", "host of the local app", "localhost")
+    .option("--secure", "verify the relay's TLS certificate", false)
+    .option("--ca <file>", "trust this CA/certificate when verifying (implies --secure)")
+    .option("--no-reconnect", "exit instead of reconnecting when the connection drops");
+}
+
 const program = new Command();
 
 program
@@ -52,24 +69,27 @@ program
   .description("Expose a local server through a Wormhole relay")
   .showHelpAfterError();
 
-program
-  .command("http")
-  .description("Tunnel public HTTP traffic to a local port")
-  .argument("<port>", "local port to expose", parseLocalPort)
-  .addOption(new Option("-t, --token <token>", "auth token").env("WORMHOLE_TOKEN"))
-  .addOption(new Option("-s, --server <host:port>", "relay control server").default(DEFAULT_SERVER).env("WORMHOLE_SERVER"))
-  .option("-n, --subdomain <name>", "request a specific subdomain")
-  .option("--local-host <host>", "host of the local app", "localhost")
-  .option("--inspect-port <port>", "inspector dashboard port", parsePort, DEFAULT_INSPECTOR_PORT)
-  .option("--no-inspect", "do not start the inspector dashboard")
-  .option("--secure", "verify the relay's TLS certificate", false)
-  .option("--ca <file>", "trust this CA/certificate when verifying (implies --secure)")
-  .option("--no-reconnect", "exit instead of reconnecting when the connection drops")
-  .action(async (port: number, opts: HttpCommandOptions) => {
-    await runHttp(port, opts);
-  });
+addConnectionOptions(
+  program
+    .command("http")
+    .description("Tunnel public HTTP traffic to a local port")
+    .argument("<port>", "local port to expose", parseLocalPort)
+    .option("--inspect-port <port>", "inspector dashboard port", parsePort, DEFAULT_INSPECTOR_PORT)
+    .option("--no-inspect", "do not start the inspector dashboard")
+).action(async (port: number, opts: HttpOptions) => {
+  await runTunnel("http", port, opts);
+});
 
-async function runHttp(localPort: number, opts: HttpCommandOptions): Promise<void> {
+addConnectionOptions(
+  program
+    .command("tcp")
+    .description("Tunnel public raw TCP connections to a local port")
+    .argument("<port>", "local port to expose", parseLocalPort)
+).action(async (port: number, opts: BaseOptions) => {
+  await runTunnel("tcp", port, opts);
+});
+
+async function runTunnel(type: TunnelType, localPort: number, opts: BaseOptions & Partial<HttpOptions>): Promise<void> {
   if (!opts.token) {
     fail("a token is required: pass --token <token> or set WORMHOLE_TOKEN");
   }
@@ -89,15 +109,22 @@ async function runHttp(localPort: number, opts: HttpCommandOptions): Promise<voi
     }
   }
 
-  const store = new RequestStore({ target: { host: opts.localHost, port: localPort } });
-  store.setStatus({ state: "connecting", localPort });
+  const inspect = type === "http" && opts.inspect !== false;
+  const store = inspect ? new RequestStore({ target: { host: opts.localHost, port: localPort } }) : undefined;
+  store?.setStatus({ state: "connecting", localPort });
 
   let inspector: InspectorServer | undefined;
-  if (opts.inspect) {
+  if (store && inspect) {
     try {
-      inspector = await startInspectorServer({ store, port: opts.inspectPort });
+      inspector = await startInspectorServer({ store, port: opts.inspectPort ?? DEFAULT_INSPECTOR_PORT });
     } catch (err) {
-      warn(`inspector not started: ${(err as NodeJS.ErrnoException).code === "EADDRINUSE" ? `port ${opts.inspectPort} is in use (try --inspect-port)` : (err as Error).message}`);
+      warn(
+        `inspector not started: ${
+          (err as NodeJS.ErrnoException).code === "EADDRINUSE"
+            ? `port ${opts.inspectPort ?? DEFAULT_INSPECTOR_PORT} is in use (try --inspect-port)`
+            : (err as Error).message
+        }`
+      );
     }
   }
 
@@ -105,36 +132,37 @@ async function runHttp(localPort: number, opts: HttpCommandOptions): Promise<voi
     serverHost: server.host,
     serverPort: server.port,
     token: opts.token,
+    type,
     localPort,
     localHost: opts.localHost,
     subdomain: opts.subdomain,
     verifyCertificate: opts.secure || ca !== undefined,
     ca,
     reconnect: opts.reconnect,
-    observe: (streamId) => store.observe(streamId)
+    observe: store ? (streamId) => store.observe(streamId) : undefined
   });
 
-  logRequests(store);
+  if (store) logRequests(store);
 
   client.once("connecting", () => info(`connecting to ${server.host}:${server.port} …`));
 
-  client.on("assigned", (assign: { subdomain: string; url?: string }, { reconnected }: { reconnected: boolean }) => {
-    const url = assign.url ?? assign.subdomain;
-    store.setStatus({ state: "online", url, message: null });
+  client.on("assigned", (assign: AssignPayload, { reconnected }: { reconnected: boolean }) => {
+    const url = assign.url ?? (assign.port !== undefined ? `tcp://${server.host}:${assign.port}` : assign.subdomain);
+    store?.setStatus({ state: "online", url, message: null });
     if (reconnected) {
       info(`reconnected · ${url}`);
       return;
     }
-    printBanner(url, opts.localHost, localPort, inspector);
+    printBanner(type, url, opts.localHost, localPort, inspector);
   });
 
   client.on("disconnected", ({ reason }: { reason: string }) => {
-    store.setStatus({ state: "reconnecting", message: reason });
+    store?.setStatus({ state: "reconnecting", message: reason });
     warn(`connection lost: ${reason}`);
   });
 
   client.on("reconnecting", ({ delayMs, reason }: { delayMs: number; reason: string }) => {
-    store.setStatus({ state: "reconnecting", message: reason });
+    store?.setStatus({ state: "reconnecting", message: reason });
     warn(`${reason} · retrying in ${(delayMs / 1000).toFixed(1)}s`);
   });
 
@@ -149,7 +177,7 @@ async function runHttp(localPort: number, opts: HttpCommandOptions): Promise<voi
   };
 
   client.on("fatal", (err: TunnelError) => {
-    store.setStatus({ state: "offline", url: null, message: err.message });
+    store?.setStatus({ state: "offline", url: null, message: err.message });
     console.error(`\nerror: ${err.message}${err.code ? ` [${err.code}]` : ""}`);
     void shutdown(1);
   });
@@ -162,13 +190,21 @@ async function runHttp(localPort: number, opts: HttpCommandOptions): Promise<voi
   });
 }
 
-function printBanner(url: string, localHost: string, localPort: number, inspector: InspectorServer | undefined): void {
+function printBanner(
+  type: TunnelType,
+  url: string,
+  localHost: string,
+  localPort: number,
+  inspector: InspectorServer | undefined
+): void {
   const rows: [string, string][] = [
     ["Status", "online"],
-    ["Forwarding", `${url} -> http://${localHost}:${localPort}`],
-    ["Inspector", inspector ? inspector.url : "disabled"]
+    ["Forwarding", `${url} -> ${type}://${localHost}:${localPort}`]
   ];
-  const curl = curlHint(url);
+  if (type === "http" && inspector) rows.push(["Inspector", inspector.url]);
+  else if (type === "http") rows.push(["Inspector", "disabled"]);
+
+  const curl = type === "http" ? curlHint(url) : undefined;
   if (curl) rows.push(["Try", curl]);
 
   console.log("");
@@ -176,8 +212,12 @@ function printBanner(url: string, localHost: string, localPort: number, inspecto
   console.log("");
   for (const [label, value] of rows) console.log(`${label.padEnd(12)}${value}`);
   console.log("");
-  console.log("Requests                                   (Ctrl+C to quit)");
-  console.log("--------");
+  if (type === "http") {
+    console.log("Requests                                   (Ctrl+C to quit)");
+    console.log("--------");
+  } else {
+    console.log("TCP connections are bridged one stream each (Ctrl+C to quit)");
+  }
 }
 
 /**

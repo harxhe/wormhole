@@ -12,6 +12,7 @@ import {
   type ParsedRequestHead
 } from "@wormhole/transport";
 import { subdomainFromHost } from "./hosts.ts";
+import { TunnelLimitError } from "./limits.ts";
 
 const log = createLogger("public");
 
@@ -90,8 +91,16 @@ function handleConnection(socket: Socket, config: Config, registry: TunnelRegist
 
     try {
       stream = tunnel.openStream();
-    } catch {
+    } catch (err) {
       stream = null;
+      if (err instanceof TunnelLimitError) {
+        finish(
+          renderResponse(429, "Too Many Requests", err.message, {
+            "Retry-After": String(Math.max(1, Math.ceil(err.retryAfterMs / 1000)))
+          })
+        );
+        return;
+      }
       finish(renderResponse(502, "Bad Gateway", "The tunnel is no longer available."));
       return;
     }

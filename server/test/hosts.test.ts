@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { publicHostname, publicUrl, stripPort, subdomainFromHost } from "../src/hosts.ts";
+import { publicHostname, publicTcpUrl, publicUrl, stripPort, subdomainFromHost } from "../src/hosts.ts";
 
 describe("stripPort", () => {
   it("removes a numeric port suffix", () => {
@@ -48,5 +48,21 @@ describe("publicHostname / publicUrl", () => {
 
   it("omits port 80", () => {
     expect(publicUrl("swift-fox", { publicHost: "example.com", httpPort: 80 })).toBe("http://swift-fox.example.com");
+  });
+
+  it("supports https and omits the default port", () => {
+    expect(
+      publicUrl("swift-fox", { publicHost: "example.com", publicScheme: "https", publicPort: 443 })
+    ).toBe("https://swift-fox.example.com");
+  });
+
+  it("supports https on a custom port", () => {
+    expect(
+      publicUrl("swift-fox", { publicHost: "example.com", publicScheme: "https", publicPort: 8443 })
+    ).toBe("https://swift-fox.example.com:8443");
+  });
+
+  it("builds a tcp endpoint", () => {
+    expect(publicTcpUrl(15001, { publicHost: "relay.example.com" })).toBe("tcp://relay.example.com:15001");
   });
 });

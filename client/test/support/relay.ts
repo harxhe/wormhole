@@ -1,10 +1,11 @@
 import { createServer as createHttpServer } from "node:http";
 import type { IncomingMessage, Server as HttpServer, ServerResponse } from "node:http";
-import { connect as netConnect } from "node:net";
+import { connect as netConnect, createServer as createNetServer } from "node:net";
 import type { AddressInfo, Server as NetServer, Socket } from "node:net";
 import { createControlServer } from "../../../server/src/control.ts";
 import { createPublicServer } from "../../../server/src/public.ts";
 import { parseConfig } from "../../../server/src/config.ts";
+import type { LimitsConfig, TcpConfig } from "../../../server/src/config.ts";
 import { TunnelRegistry } from "../../../server/src/registry.ts";
 import { getTestCredentials } from "../../../server/test/support/test-cert.ts";
 
@@ -27,6 +28,12 @@ export function listen(server: NetServer | HttpServer, port = 0): Promise<number
   });
 }
 
+/** A loopback range unlikely to collide with other test workers. */
+function testTcpRange(): Pick<TcpConfig, "portStart" | "portEnd"> {
+  const start = 24000 + ((process.pid * 37) % 4000);
+  return { portStart: start, portEnd: start + 99 };
+}
+
 export interface Relay {
   controlPort: number;
   publicPort: number;
@@ -37,8 +44,16 @@ export interface Relay {
   restart(): Promise<void>;
 }
 
-/** The real Phase 0 relay server, running in-process on random ports. */
-export async function startRelay(heartbeat = { intervalMs: 10_000, timeoutMs: 30_000 }): Promise<Relay> {
+export interface RelayOptions {
+  limits?: Partial<LimitsConfig>;
+  tcp?: Partial<TcpConfig>;
+}
+
+/** The relay server, running in-process on random ports. */
+export async function startRelay(
+  heartbeat = { intervalMs: 10_000, timeoutMs: 30_000 },
+  options: RelayOptions = {}
+): Promise<Relay> {
   const credentials = await getTestCredentials();
   const config = parseConfig(
     {
@@ -47,6 +62,13 @@ export async function startRelay(heartbeat = { intervalMs: 10_000, timeoutMs: 30
       publicHost: "localhost",
       tokens: [TEST_TOKEN],
       heartbeat,
+      limits: options.limits,
+      tcp: {
+        enabled: true,
+        bindHost: "127.0.0.1",
+        ...testTcpRange(),
+        ...options.tcp
+      },
       cert: { dir: "certs" }
     },
     { baseDir: "." }
@@ -54,7 +76,7 @@ export async function startRelay(heartbeat = { intervalMs: 10_000, timeoutMs: 30
 
   // One registry for the relay's lifetime: when the control listener is killed,
   // each dropped connection unregisters its tunnel, as in a real restart.
-  const registry = new TunnelRegistry();
+  const registry = new TunnelRegistry({ maxTunnelsPerToken: config.limits.maxTunnelsPerToken });
   const publicServer = createPublicServer({ config, registry });
   const publicPort = await listen(publicServer);
 
@@ -131,6 +153,31 @@ export async function startLocalApp(
   const close = (): Promise<void> =>
     new Promise((resolve) => {
       app.closeAllConnections();
+      app.close(() => resolve());
+    });
+  cleanups.push(close);
+  return { port, close };
+}
+
+export interface TcpApp {
+  port: number;
+  close(): Promise<void>;
+}
+
+/** A local TCP echo server for raw tunnel tests. */
+export async function startTcpEchoApp(): Promise<TcpApp> {
+  const sockets = new Set<Socket>();
+  const app = createNetServer((socket) => {
+    sockets.add(socket);
+    socket.once("close", () => sockets.delete(socket));
+    socket.on("error", () => {});
+    socket.pipe(socket);
+  });
+  const port = await listen(app);
+  const close = (): Promise<void> =>
+    new Promise((resolve) => {
+      for (const socket of sockets) socket.destroy();
+      sockets.clear();
       app.close(() => resolve());
     });
   cleanups.push(close);

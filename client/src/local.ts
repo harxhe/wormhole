@@ -164,3 +164,101 @@ export function proxyStream(options: ProxyStreamOptions): void {
 function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
+
+/**
+ * Bridge one raw TCP tunnel stream to the local app. Unlike {@link proxyStream}
+ * it never speaks HTTP: if the local app is down it reports `LOCAL_DOWN` and
+ * closes the stream.
+ */
+export function proxyRawStream(options: ProxyStreamOptions): void {
+  const { stream, target } = options;
+  const connectTimeoutMs = options.connectTimeoutMs ?? LOCAL_CONNECT_TIMEOUT_MS;
+
+  const local: Socket = netConnect({ host: target.host, port: target.port });
+  local.setNoDelay(true);
+
+  const pending: Buffer[] = [];
+  let connected = false;
+  let finished = false;
+  let controlPaused = false;
+  let connectTimer: NodeJS.Timeout | undefined;
+
+  const finish = (error?: string): void => {
+    if (finished) return;
+    finished = true;
+    if (connectTimer) clearTimeout(connectTimer);
+    if (controlPaused) {
+      controlPaused = false;
+      stream.resumeControl();
+    }
+    local.destroy();
+    stream.close();
+    options.observer?.end(error ? { error } : undefined);
+    options.onDone?.();
+  };
+
+  connectTimer = setTimeout(() => {
+    if (connected) return;
+    const err = Object.assign(new Error("connect timeout"), { code: "ETIMEDOUT" });
+    local.destroy(err);
+  }, connectTimeoutMs);
+  connectTimer.unref();
+
+  // Public bytes -> local app.
+  stream.on("data", (chunk: Buffer) => {
+    options.observer?.request(chunk);
+    if (connected) {
+      if (!local.write(chunk) && !controlPaused) {
+        controlPaused = true;
+        stream.pauseControl();
+      }
+    } else {
+      pending.push(chunk);
+    }
+  });
+  stream.on("drain", () => local.resume());
+  stream.on("close", () => finish());
+  stream.on("error", () => {
+    // `close` follows.
+  });
+
+  local.on("connect", () => {
+    connected = true;
+    clearTimeout(connectTimer);
+    for (const chunk of pending) {
+      if (!local.write(chunk) && !controlPaused) {
+        controlPaused = true;
+        stream.pauseControl();
+      }
+    }
+    pending.length = 0;
+  });
+
+  // Local app bytes -> public stream.
+  local.on("data", (chunk: Buffer) => {
+    options.observer?.response(chunk);
+    if (!stream.write(chunk)) local.pause();
+  });
+  local.on("drain", () => {
+    if (controlPaused) {
+      controlPaused = false;
+      stream.resumeControl();
+    }
+  });
+  local.on("end", () => finish());
+  local.on("close", () => finish());
+  local.on("error", (err: NodeJS.ErrnoException) => {
+    if (finished) return;
+    if (!connected) {
+      const reason = err.code ?? err.message;
+      options.reportError?.({
+        code: "LOCAL_DOWN",
+        message: `local app at ${target.host}:${target.port} is unreachable (${reason})`
+      });
+      finish(`local app unreachable (${reason})`);
+      return;
+    }
+    finish(`local app connection failed (${err.code ?? err.message})`);
+  });
+}
+

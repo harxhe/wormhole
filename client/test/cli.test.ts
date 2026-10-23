@@ -1,8 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { connect as netConnect } from "node:net";
 import { fileURLToPath } from "node:url";
-import { TEST_TOKEN, cleanups, publicRequest, runCleanups, startLocalApp, startRelay } from "./support/relay.ts";
+import {
+  TEST_TOKEN,
+  cleanups,
+  publicRequest,
+  runCleanups,
+  startLocalApp,
+  startRelay,
+  startTcpEchoApp
+} from "./support/relay.ts";
 
 afterEach(runCleanups);
 
@@ -85,5 +94,45 @@ describe("wormhole http <port>", () => {
     const cli = runCli(["http", "3000", "--no-inspect"]);
     expect(await cli.exited).toBe(1);
     expect(cli.output()).toContain("a token is required");
+  });
+});
+
+describe("wormhole tcp <port>", () => {
+  it("prints the public endpoint and relays raw bytes", async () => {
+    const relay = await startRelay();
+    const app = await startTcpEchoApp();
+    const cli = runCli([
+      "tcp",
+      String(app.port),
+      "--token",
+      TEST_TOKEN,
+      "--server",
+      `127.0.0.1:${relay.controlPort}`,
+      "--subdomain",
+      "cli-tcp"
+    ]);
+
+    const banner = await cli.waitForOutput("Forwarding");
+    const match = /Forwarding\s+tcp:\/\/localhost:(\d+) -> tcp:\/\/localhost:\d+/.exec(banner);
+    expect(match).not.toBeNull();
+    const publicPort = Number(match![1]);
+
+    const echoed = await new Promise<string>((resolve, reject) => {
+      const socket = netConnect(publicPort, "127.0.0.1", () => socket.write("cli-tcp-ping"));
+      let data = "";
+      socket.setEncoding("utf8");
+      socket.on("data", (chunk: string) => {
+        data += chunk;
+        if (data.length >= "cli-tcp-ping".length) {
+          socket.end();
+          resolve(data);
+        }
+      });
+      socket.on("error", reject);
+    });
+    expect(echoed).toBe("cli-tcp-ping");
+
+    cli.child.kill("SIGINT");
+    await cli.exited;
   });
 });

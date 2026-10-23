@@ -1,9 +1,24 @@
-import { describe, expect, it } from "vitest";
-import { TunnelRegistry, isValidSubdomain, type TunnelSession } from "../src/registry.ts";
+import { EventEmitter } from "node:events";
+import { describe, expect, it, vi } from "vitest";
+import { TunnelRegistry, Tunnel, isValidSubdomain, type TunnelSession } from "../src/registry.ts";
+import { TunnelLimitError } from "../src/limits.ts";
 
-function fakeTunnel(subdomain: string): TunnelSession {
-  return { subdomain, type: "http", openStream: () => ({}) as never };
+function fakeTunnel(subdomain: string, token = "token"): TunnelSession {
+  return {
+    subdomain,
+    type: "http",
+    token,
+    streamCount: 0,
+    openStream: () => ({}) as never,
+    close: () => {}
+  };
 }
+
+function fakeStream(): EventEmitter {
+  return new EventEmitter();
+}
+
+const limits = { maxStreamsPerTunnel: 0, maxTunnelsPerToken: 0, requestsPerMinute: 0 };
 
 describe("isValidSubdomain", () => {
   it("accepts lowercase alphanumeric labels with internal hyphens", () => {
@@ -54,5 +69,73 @@ describe("TunnelRegistry", () => {
       seen.add(name);
       registry.add(fakeTunnel(name));
     }
+  });
+
+  it("enforces the per-token tunnel cap", () => {
+    const registry = new TunnelRegistry({ maxTunnelsPerToken: 1 });
+    registry.add(fakeTunnel("one", "token-a"));
+    expect(() => registry.add(fakeTunnel("two", "token-a"))).toThrowError(TunnelLimitError);
+    expect(() => registry.add(fakeTunnel("three", "token-b"))).not.toThrow();
+  });
+
+  it("closes a tunnel when it is removed and when the registry is drained", async () => {
+    const registry = new TunnelRegistry();
+    const close = vi.fn();
+    registry.add({ ...fakeTunnel("one"), close });
+    registry.remove("one");
+    expect(close).toHaveBeenCalledOnce();
+
+    const second = vi.fn();
+    registry.add({ ...fakeTunnel("two"), close: second });
+    await registry.closeAll();
+    expect(second).toHaveBeenCalledOnce();
+    expect(registry.size).toBe(0);
+  });
+});
+
+describe("Tunnel limits", () => {
+  it("caps concurrent streams", () => {
+    const tunnel = new Tunnel({
+      subdomain: "limited",
+      type: "http",
+      token: "token",
+      limits: { ...limits, maxStreamsPerTunnel: 1 },
+      openStream: () => fakeStream() as never
+    });
+
+    const stream = tunnel.openStream();
+    expect(tunnel.streamCount).toBe(1);
+    expect(() => tunnel.openStream()).toThrowError(TunnelLimitError);
+    stream.emit("close");
+    expect(tunnel.streamCount).toBe(0);
+    expect(() => tunnel.openStream()).not.toThrow();
+  });
+
+  it("rate limits new streams", () => {
+    const tunnel = new Tunnel({
+      subdomain: "rate",
+      type: "http",
+      token: "token",
+      limits: { ...limits, requestsPerMinute: 1 },
+      openStream: () => fakeStream() as never
+    });
+
+    tunnel.openStream().emit("close");
+    expect(() => tunnel.openStream()).toThrowError(TunnelLimitError);
+  });
+
+  it("refuses new streams after close", async () => {
+    const close = vi.fn();
+    const tunnel = new Tunnel({
+      subdomain: "closing",
+      type: "http",
+      token: "token",
+      limits,
+      openStream: () => fakeStream() as never,
+      close
+    });
+    await tunnel.close();
+    expect(close).toHaveBeenCalledOnce();
+    expect(() => tunnel.openStream()).toThrowError(TunnelLimitError);
   });
 });

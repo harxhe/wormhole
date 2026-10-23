@@ -69,11 +69,17 @@ export function serializeRequestHead(head: ParsedRequestHead): Buffer {
 const STATUS_TEXT: Record<number, string> = {
   400: "Bad Request",
   404: "Not Found",
+  429: "Too Many Requests",
   502: "Bad Gateway"
 };
 
 /** Build a complete raw HTTP response with an HTML body. */
-export function renderResponse(status: number, title: string, message: string): Buffer {
+export function renderResponse(
+  status: number,
+  title: string,
+  message: string,
+  headers: Record<string, string> = {}
+): Buffer {
   const statusText = STATUS_TEXT[status] ?? "Error";
   const body = [
     "<!doctype html>",
@@ -93,6 +99,7 @@ export function renderResponse(status: number, title: string, message: string): 
     "Content-Type: text/html; charset=utf-8",
     `Content-Length: ${Buffer.byteLength(body)}`,
     "Connection: close",
+    ...Object.entries(headers).map(([name, value]) => `${name}: ${value}`),
     "",
     ""
   ].join("\r\n");

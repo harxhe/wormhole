@@ -6,7 +6,7 @@ import { FrameDecoder, FrameType, encodeJsonFrame, frameTypeName } from "@wormho
 import type { AssignPayload, ErrorPayload, Frame } from "@wormhole/protocol";
 import { createControlServer } from "../src/control.ts";
 import { parseConfig } from "../src/config.ts";
-import { TunnelRegistry } from "../src/registry.ts";
+import { TunnelRegistry, type RegistryOptions } from "../src/registry.ts";
 import { getTestCredentials } from "./support/test-cert.ts";
 
 const cleanups: Array<() => void> = [];
@@ -30,9 +30,12 @@ interface ControlClient {
   closed(): Promise<void>;
 }
 
-async function startServer(authTimeoutMs = 500): Promise<{ server: Server; port: number; registry: TunnelRegistry }> {
+async function startServer(
+  authTimeoutMs = 500,
+  registryOptions: RegistryOptions = {}
+): Promise<{ server: Server; port: number; registry: TunnelRegistry }> {
   const credentials = await getTestCredentials();
-  const registry = new TunnelRegistry();
+  const registry = new TunnelRegistry(registryOptions);
   const config = parseConfig(baseConfig, { baseDir: "." });
   const server = createControlServer({ config, credentials, registry, authTimeoutMs });
 
@@ -160,5 +163,17 @@ describe("createControlServer", () => {
     client.socket.destroy();
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(registry.has("gone")).toBe(false);
+  });
+
+  it("enforces the per-token tunnel cap", async () => {
+    const { port } = await startServer(500, { maxTunnelsPerToken: 1 });
+    const first = await connectClient(port);
+    first.sendAuth({ token: "test-token", type: "http", subdomain: "first" });
+    await first.waitForFrame(FrameType.ASSIGN);
+
+    const second = await connectClient(port);
+    second.sendAuth({ token: "test-token", type: "http", subdomain: "second" });
+    const error = json<ErrorPayload>(await second.waitForFrame(FrameType.ERROR));
+    expect(error.code).toBe("TOO_MANY_TUNNELS");
   });
 });

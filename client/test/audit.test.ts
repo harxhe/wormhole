@@ -162,7 +162,16 @@ describe("reconnect edge cases", () => {
     // Simulate a server that has not noticed the old connection died yet.
     await relay.stop();
     await sleep(20);
-    relay.registry.add({ subdomain: "held", type: "http", openStream: () => { throw new Error("stale"); } });
+    relay.registry.add({
+      subdomain: "held",
+      type: "http",
+      token: TEST_TOKEN,
+      streamCount: 0,
+      openStream: () => {
+        throw new Error("stale");
+      },
+      close: () => {}
+    });
     await relay.restart();
 
     const [, info] = await waitFor<{ reason: string }>(client, "reconnecting", 3000);

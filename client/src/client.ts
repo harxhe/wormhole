@@ -9,12 +9,12 @@ import {
   HEARTBEAT_TIMEOUT_MS,
   decodeJson
 } from "@wormhole/protocol";
-import type { AssignPayload, AuthPayload, ErrorPayload, Frame } from "@wormhole/protocol";
+import type { AssignPayload, AuthPayload, ErrorPayload, Frame, TunnelType } from "@wormhole/protocol";
 import { Mux } from "@wormhole/transport";
 import type { StreamObserver } from "@wormhole/inspector";
 import { Backoff } from "./backoff.ts";
 import type { BackoffOptions } from "./backoff.ts";
-import { proxyStream } from "./local.ts";
+import { proxyRawStream, proxyStream } from "./local.ts";
 
 /** Time allowed between TLS connect and `ASSIGN` before the attempt is dropped. */
 export const DEFAULT_HANDSHAKE_TIMEOUT_MS = 10_000;
@@ -43,6 +43,8 @@ export interface TunnelClientOptions {
   /** Relay server TLS control port. */
   serverPort: number;
   token: string;
+  /** Tunnel protocol. HTTP is the default; TCP exposed raw connections. */
+  type?: TunnelType;
   /** Local app to expose. */
   localPort: number;
   /** Host of the local app (default `localhost`, as in the implementation plan). */
@@ -246,8 +248,9 @@ export class TunnelClient extends EventEmitter {
       }, this.options.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS);
       this.handshakeTimer.unref();
 
-      const auth: AuthPayload = { token: this.options.token, type: "http" };
+      const auth: AuthPayload = { token: this.options.token, type: this.options.type ?? "http" };
       if (this.subdomain) auth.subdomain = this.subdomain;
+      if (this.options.localPort) auth.port = this.options.localPort;
       mux.sendJsonFrame(FrameType.AUTH, CONTROL_STREAM_ID, auth);
     });
   }
@@ -274,15 +277,18 @@ export class TunnelClient extends EventEmitter {
       return;
     }
     this.streamTable.set(streamId, { id: streamId, openedAt: Date.now() });
-    proxyStream({
+    const proxyOptions = {
       stream,
       target: { host: this.options.localHost ?? "localhost", port: this.options.localPort },
       observer: this.options.observe?.(streamId),
-      reportError: (error) => mux.sendJsonFrame(FrameType.ERROR, streamId, error),
+      reportError: (error: { code: string; message: string }) =>
+        mux.sendJsonFrame(FrameType.ERROR, streamId, error),
       onDone: () => {
         this.streamTable.delete(streamId);
       }
-    });
+    };
+    if ((this.options.type ?? "http") === "tcp") proxyRawStream(proxyOptions);
+    else proxyStream(proxyOptions);
   }
 
   private isFatal(err: TunnelError): boolean {

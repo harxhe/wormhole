@@ -8,7 +8,7 @@ import {
   HEARTBEAT_TIMEOUT_MS,
   decodeJson
 } from "@wormhole/protocol";
-import type { AssignPayload, AuthPayload, ErrorPayload, Frame } from "@wormhole/protocol";
+import type { AssignPayload, AuthPayload, ErrorPayload, Frame, TunnelType } from "@wormhole/protocol";
 import { Mux, createLogger } from "@wormhole/transport";
 
 const log = createLogger("mock-client");
@@ -18,6 +18,7 @@ export interface MockClientOptions {
   serverPort: number;
   token: string;
   localPort: number;
+  type?: TunnelType;
   subdomain?: string;
   /** Skip certificate verification (self-signed local certs). Default true. */
   insecure?: boolean;
@@ -75,7 +76,11 @@ export function startMockClient(options: MockClientOptions): MockClient {
     });
     mux.on("open", (streamId: number) => handleOpen(mux!, streamId, options.localPort));
 
-    const auth: AuthPayload = { token: options.token, type: "http", subdomain: options.subdomain };
+    const auth: AuthPayload = {
+      token: options.token,
+      type: options.type ?? "http",
+      subdomain: options.subdomain
+    };
     mux.sendJsonFrame(FrameType.AUTH, CONTROL_STREAM_ID, auth);
   });
 

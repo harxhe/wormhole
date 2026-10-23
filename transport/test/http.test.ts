@@ -51,4 +51,11 @@ describe("renderResponse", () => {
     expect(response).toMatch(/Content-Length: \d+/);
     expect(response).toContain("missing");
   });
+
+  it("adds extra headers and the 429 status text", () => {
+    const response = renderResponse(429, "Too Many Requests", "slow down", { "Retry-After": "2" }).toString("latin1");
+    expect(response.startsWith("HTTP/1.1 429 Too Many Requests\r\n")).toBe(true);
+    expect(response).toContain("Retry-After: 2\r\n");
+    expect(response).toContain("slow down");
+  });
 });
