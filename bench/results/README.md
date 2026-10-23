@@ -16,7 +16,8 @@ with the dev token and a throwaway TLS key log. In Wireshark:
 1. Open `wormhole.pcap`.
 2. **Edit → Preferences → Protocols → TLS → Pre-Master-Secret log filename**
    and select `wormhole-tls-keys.log`.
-3. Filter with `tcp.port == 4443` to see the control connection.
+3. Right-click a packet on port 4443 and choose **Decode As → TLS** if needed.
+4. Filter with `tcp.port == 4443` to see the control connection.
 
 The key log is only for this local demonstration capture. Never reuse it or
 commit a key log from a real deployment.

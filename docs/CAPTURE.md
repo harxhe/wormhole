@@ -10,7 +10,7 @@ Both the server and the client write the TLS secrets when
 `WORMHOLE_TLS_KEYLOG` is set. Use a throwaway file and never commit it.
 
 ```sh
-export WORMHOLE_TLS_KEYLOG="$PWD/bench/results/tls-keys.log"
+export WORMHOLE_TLS_KEYLOG="$PWD/bench/results/wormhole-tls-keys.log"
 npm run server
 # in another terminal, with the same variable set:
 npm run client -- http 3000 --token dev-token-please-change --subdomain demo
@@ -19,7 +19,7 @@ npm run client -- http 3000 --token dev-token-please-change --subdomain demo
 On PowerShell:
 
 ```powershell
-$env:WORMHOLE_TLS_KEYLOG = "$PWD\bench\results\tls-keys.log"
+$env:WORMHOLE_TLS_KEYLOG = "$PWD\bench\results\wormhole-tls-keys.log"
 npm run server
 ```
 
@@ -57,8 +57,11 @@ tcp port 4443 or tcp port 8080 or (tcp portrange 15000-15099)
 
 1. Open `bench/results/wormhole.pcap`.
 2. **Edit → Preferences → Protocols → TLS**.
-3. Set **Pre-Master-Secret log filename** to `bench/results/tls-keys.log`.
-4. Apply the display filter `tls` or `tcp.port == 4443`.
+3. Set **Pre-Master-Secret log filename** to `bench/results/wormhole-tls-keys.log`.
+4. If the control stream still appears as plain TCP, right-click a packet on
+   port 4443 and choose **Decode As → TLS**, or start tshark with
+   `-d tcp.port==4443,tls`.
+5. Apply the display filter `tls` or `tcp.port == 4443`.
 
 ## Useful display filters
 
