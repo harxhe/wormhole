@@ -69,8 +69,12 @@ sudo ./bench/netem.sh del
 
 See [`docs/CAPTURE.md`](../docs/CAPTURE.md) and the helper scripts:
 
+- `node bench/capture-docker.mjs` — reproducible Linux capture via Docker
 - `bench/capture.ps1` (Windows, requires Wireshark/dumpcap)
 - `bench/capture.sh` (Linux/macOS, requires tcpdump/tshark)
+
+A sample capture with its TLS key log is committed in
+[`results/`](./results/README.md).
 
 ## Notes
 

@@ -129,7 +129,10 @@ Observations:
 - Large transfers are limited by the 16 KiB frame size and per-frame header
   overhead, not by memory use.
 
-Full results: [`bench/results/latest.md`](../bench/results/latest.md).
+Full results: [`bench/results/latest.md`](../bench/results/latest.md). A sample
+packet capture of the HTTP and TCP tunnels, with its TLS key log, is in
+[`bench/results/wormhole.pcap`](../bench/results/wormhole.pcap); see
+[`docs/CAPTURE.md`](./CAPTURE.md) for the Wireshark setup.
 
 ## Security and operations
 

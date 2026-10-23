@@ -80,6 +80,7 @@ Current state of the Wormhole implementation.
 - [x] JSON, Markdown and SVG chart output
 - [x] `tc netem` helper script
 - [x] Wireshark capture scripts and guide (`docs/CAPTURE.md`)
+- [x] Sample capture and TLS key log (`bench/results/wormhole.pcap`)
 - [x] Report (`docs/REPORT.md`), demo script (`docs/DEMO.md`), slides
   (`docs/SLIDES.md`)
 

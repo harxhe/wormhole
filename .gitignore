@@ -5,6 +5,8 @@ certs/
 *.log
 *.pcap
 *.tsbuildinfo
+!bench/results/wormhole.pcap
+!bench/results/wormhole-tls-keys.log
 .DS_Store
 .env
 .env.*

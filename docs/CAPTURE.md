@@ -25,6 +25,16 @@ npm run server
 
 ## 2. Capture traffic
 
+The simplest reproducible option is Docker: build the image, then run the
+capture script. It starts the relay, HTTP and TCP clients inside a container,
+generates traffic, and writes `wormhole.pcap` plus a key log to
+`bench/results/`.
+
+```sh
+docker build -t wormhole-relay:test .
+node bench/capture-docker.mjs
+```
+
 Windows (Administrator PowerShell, Wireshark/Npcap installed):
 
 ```powershell

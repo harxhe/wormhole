@@ -113,8 +113,8 @@ Rules: control frames use StreamID `0`, server-created streams use odd IDs, and 
   TLS guide are ready; an actual VPS/DNS run is environment-dependent
 - [x] Integration test with the real client
 - [x] Benchmarks (loopback; `tc netem` helper included)
-- [~] Wireshark captures — capture scripts, TLS key log support and a guide are
-  included; generating a `.pcap` requires Wireshark/dumpcap on the machine
+- [x] Wireshark captures — scripts, TLS key-log support, guide and a sample
+  `bench/results/wormhole.pcap` are included
 - [x] Demo script and README (video recording is environment-dependent)
 - [x] Report sections and slides (`docs/REPORT.md`, `docs/SLIDES.md`)
 - [x] Final run-through

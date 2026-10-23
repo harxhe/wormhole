@@ -4,6 +4,7 @@ node_modules
 .gitignore
 coverage
 bench/results
+bench/results/*.pcap
 server/certs
 *.log
 *.tsbuildinfo
