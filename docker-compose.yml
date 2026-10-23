@@ -1,0 +1,28 @@
+services:
+  relay:
+    build: .
+    image: wormhole-relay:latest
+    restart: unless-stopped
+    ports:
+      - "4443:4443"
+      - "8080:8080"
+      - "15000-15099:15000-15099/tcp"
+    environment:
+      WORMHOLE_CONFIG: /app/server/config.yaml
+      WORMHOLE_LOG_LEVEL: info
+    volumes:
+      - ./server/config.yaml:/app/server/config.yaml:ro
+      - wormhole-certs:/app/server/certs
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/').then(()=>process.exit(0)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  wormhole-certs:

@@ -1,4 +1,5 @@
 import { createServer } from "node:tls";
+import { appendFileSync } from "node:fs";
 import type { Server, TLSSocket } from "node:tls";
 import {
   CONTROL_STREAM_ID,
@@ -42,6 +43,17 @@ export function createControlServer(options: ControlServerOptions): Server {
   });
 
   server.on("tlsClientError", (err) => log.debug(`TLS handshake failed: ${err.message}`));
+
+  const keylogPath = process.env.WORMHOLE_TLS_KEYLOG;
+  if (keylogPath) {
+    server.on("keylog", (line) => {
+      try {
+        appendFileSync(keylogPath, line);
+      } catch (err) {
+        log.debug(`cannot write TLS key log: ${(err as Error).message}`);
+      }
+    });
+  }
 
   return server;
 }

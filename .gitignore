@@ -3,6 +3,7 @@ dist/
 coverage/
 certs/
 *.log
+*.pcap
 *.tsbuildinfo
 .DS_Store
 .env

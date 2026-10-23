@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { appendFileSync } from "node:fs";
 import { isIP } from "node:net";
 import { connect as tlsConnect } from "node:tls";
 import type { TLSSocket } from "node:tls";
@@ -170,6 +171,7 @@ export class TunnelClient extends EventEmitter {
     this.emit("connecting", { attempt: this.attempt });
 
     const host = this.options.serverHost;
+    const keylogPath = process.env.WORMHOLE_TLS_KEYLOG;
     const socket = tlsConnect({
       host,
       port: this.options.serverPort,
@@ -177,6 +179,15 @@ export class TunnelClient extends EventEmitter {
       rejectUnauthorized: this.options.verifyCertificate ?? false,
       ca: this.options.ca
     });
+    if (keylogPath) {
+      socket.on("keylog", (line: Buffer) => {
+        try {
+          appendFileSync(keylogPath, line);
+        } catch {
+          // Capture support is best-effort; a bad path must not break the tunnel.
+        }
+      });
+    }
     this.socket = socket;
 
     let lastError: TunnelError | undefined;

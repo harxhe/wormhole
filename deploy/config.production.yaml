@@ -1,0 +1,39 @@
+# Production relay configuration.
+#
+# Copy this file, replace every value marked "replace-me", then mount it into
+# the container at /app/server/config.yaml (see deploy/README.md).
+
+controlPort: 4443
+httpPort: 8080
+publicHost: tunnel.example.com
+publicScheme: https
+publicPort: 443
+
+tokens:
+  - replace-with-a-long-random-token
+
+limits:
+  maxStreamsPerTunnel: 100
+  maxTunnelsPerToken: 5
+  requestsPerMinute: 1200
+
+tcp:
+  enabled: true
+  bindHost: 0.0.0.0
+  portStart: 15000
+  portEnd: 15099
+
+# TLS certificate for the control listener (clients connect to :4443).
+# Point these at the relay host's real certificate, not the self-signed dev one.
+cert:
+  dir: /app/server/certs
+  keyFile: relay.key
+  certFile: relay.crt
+  commonName: relay.example.com
+  altNames:
+    - relay.example.com
+  days: 90
+
+heartbeat:
+  intervalMs: 10000
+  timeoutMs: 30000

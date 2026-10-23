@@ -1,0 +1,27 @@
+# Public HTTPS termination for Wormhole.
+#
+# A wildcard certificate is required for tunnel subdomains. Caddy can obtain
+# one with the DNS challenge (install the matching DNS provider module first,
+# e.g. xcaddy build --with github.com/caddy-dns/cloudflare).
+#
+# Environment:
+#   WORMHOLE_DOMAIN  e.g. tunnel.example.com
+#   ACME_EMAIL       contact address for Let's Encrypt
+
+{
+  email {$ACME_EMAIL}
+}
+
+*.{$WORMHOLE_DOMAIN} {
+  tls {
+    dns cloudflare {env.CF_API_TOKEN}
+  }
+  reverse_proxy relay:8080
+}
+
+{$WORMHOLE_DOMAIN} {
+  tls {
+    dns cloudflare {env.CF_API_TOKEN}
+  }
+  respond "Wormhole relay" 200
+}
