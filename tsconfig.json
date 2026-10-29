@@ -5,7 +5,9 @@
     "paths": {
       "@wormhole/protocol": ["./protocol/src/index.ts"],
       "@wormhole/transport": ["./transport/src/index.ts"],
-      "@wormhole/inspector": ["./inspector/src/index.ts"]
+      "@wormhole/inspector": ["./inspector/src/index.ts"],
+      "@wormhole/client": ["./client/src/index.ts"],
+      "@wormhole/dashboard": ["./dashboard/src/index.ts"]
     }
   },
   "include": [
@@ -19,6 +21,8 @@
     "inspector/test/**/*.ts",
     "client/src/**/*.ts",
     "client/test/**/*.ts",
+    "dashboard/src/**/*.ts",
+    "dashboard/test/**/*.ts",
     "bench/src/**/*.ts"
   ]
 }

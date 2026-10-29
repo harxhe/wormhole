@@ -10,12 +10,14 @@
     "server",
     "inspector",
     "client",
+    "dashboard",
     "bench"
   ],
   "scripts": {
     "server": "npm run start --workspace @wormhole/server",
     "dev": "npm run dev --workspace @wormhole/server",
     "client": "npm run start --workspace @wormhole/client --",
+    "dashboard": "tsx dashboard/src/cli.ts",
     "gen-cert": "npm run gen-cert --workspace @wormhole/server",
     "bench": "tsx bench/src/run.ts",
     "bench:smoke": "tsx bench/src/run.ts --duration 1 --connections 1 --no-warmup",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
+    "@wormhole/dashboard": "*",
     "tsx": "^4.23.15",
     "typescript": "^5.7.2",
     "vitest": "^5.0.3"

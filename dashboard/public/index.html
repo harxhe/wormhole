@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Wormhole — Dashboard</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16M14 6l6 6-6 6"/></symbol>
+    <symbol id="i-enter" viewBox="0 0 24 24"><path d="M20 5v6a4 4 0 0 1-4 4H5"/><path d="m9 11-4 4 4 4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 3h7v7M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M10 11v5M14 11v5"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="7" y="5" width="3.5" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="13.5" y="5" width="3.5" height="14" rx="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17.5v.5"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4 14 2.5-7H21"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2 5.3M20 4v7h-7"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l2 2M14 9l2 2"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Wormhole dashboard home">
+      <span class="brand-mark" aria-hidden="true"><span></span></span>
+      <span class="brand-name">wormhole</span>
+      <span class="brand-tag">dashboard</span>
+    </a>
+    <div class="topbar-right">
+      <button class="relay-pill" id="relay-pill" type="button" title="Open relay settings">
+        <span class="status-dot" id="relay-dot"></span>
+        <span class="relay-label">relay</span>
+        <span class="relay-host" id="relay-host">localhost:4443</span>
+      </button>
+      <button class="icon-btn" id="settings-btn" type="button" aria-label="Open settings" title="Settings">
+        <svg class="icon"><use href="#i-settings"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <aside class="sidebar">
+      <section class="panel composer">
+        <div class="window-bar">
+          <span class="window-title"><span class="window-prompt">&gt;</span> new tunnel</span>
+          <span class="window-meta">~/wormhole</span>
+        </div>
+
+        <div class="composer-body">
+          <p class="lede">Enter the port your app is listening on. The dashboard runs the client and gives you a public URL.</p>
+
+          <div class="command-preview" aria-label="CLI command preview">
+            <span class="prompt">$</span>
+            <code id="command-text">wormhole http</code>
+            <span class="command-cursor" aria-hidden="true"></span>
+          </div>
+
+          <form id="tunnel-form" novalidate>
+            <div class="field">
+              <label for="port">Port</label>
+              <div class="port-input">
+                <span class="port-prefix">localhost:</span>
+                <input id="port" name="port" type="number" inputmode="numeric" min="1" max="65535" placeholder="3000" autocomplete="off" required aria-describedby="port-hint port-error">
+              </div>
+              <p class="hint sans" id="port-hint">The port your app is already listening on.</p>
+              <p class="field-error" id="port-error" role="alert" hidden></p>
+            </div>
+
+            <div class="field">
+              <label>Protocol</label>
+              <div class="segmented" id="type-segmented" role="group" aria-label="Tunnel protocol">
+                <button type="button" data-type="http" class="active" aria-pressed="true">
+                  <svg class="icon"><use href="#i-globe"/></svg> HTTP
+                </button>
+                <button type="button" data-type="tcp" aria-pressed="false">
+                  <svg class="icon"><use href="#i-plug"/></svg> TCP
+                </button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="subdomain">Public name <span class="optional">optional</span></label>
+              <div class="subdomain-input">
+                <input id="subdomain" name="subdomain" type="text" placeholder="random" autocomplete="off" spellcheck="false" aria-describedby="url-preview">
+                <button type="button" class="icon-btn dice-btn" id="randomize" title="Generate a random name" aria-label="Generate a random name">
+                  <svg class="icon"><use href="#i-dice"/></svg>
+                </button>
+              </div>
+              <p class="hint" id="url-preview">A random name will be assigned.</p>
+            </div>
+
+            <details class="advanced">
+              <summary>Advanced</summary>
+              <div class="field advanced-field">
+                <label for="local-host">Local host</label>
+                <input id="local-host" name="localHost" type="text" value="localhost" autocomplete="off" spellcheck="false">
+              </div>
+              <p class="hint">Relay <span id="form-relay">localhost:4443</span> / <button type="button" class="link-btn" id="advanced-settings">Change settings</button></p>
+            </details>
+
+            <button class="primary start-btn" id="start-btn" type="submit">
+              <span class="start-label">Start tunnel</span>
+              <svg class="icon enter"><use href="#i-enter"/></svg>
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel tip">
+        <div class="tip-icon" aria-hidden="true">
+          <svg class="icon"><use href="#i-terminal"/></svg>
+        </div>
+        <div>
+          <strong>Your app stays local.</strong>
+          <p>Only the relay sees public traffic. Stop any tunnel with one click.</p>
+        </div>
+      </section>
+    </aside>
+
+    <section class="main">
+      <div class="section-head">
+        <h2 class="section-title"><span class="section-prompt">&gt;</span> Tunnels</h2>
+        <div class="section-count" id="tunnel-title">0 active</div>
+      </div>
+
+      <div class="tunnel-grid" id="tunnel-grid"></div>
+
+      <div class="panel empty-state" id="empty-state">
+        <div class="empty-prompt" aria-hidden="true"><span class="prompt-sign">$</span><span class="prompt-cursor"></span></div>
+        <h3>Open your first tunnel.</h3>
+        <p>Enter a port on the left and start a tunnel. The public URL and request log will appear here.</p>
+        <button class="secondary" id="empty-cta" type="button">Enter a port</button>
+      </div>
+
+      <section class="panel inspector" id="inspector" hidden>
+        <div class="inspector-head">
+          <div class="inspector-title">
+            <span class="eyebrow">Live requests</span>
+            <h2>
+              <span id="selected-name">tunnel</span>
+              <span class="type-chip" id="selected-type">HTTP</span>
+            </h2>
+          </div>
+          <div class="toolbar">
+            <div class="search">
+              <svg class="icon"><use href="#i-search"/></svg>
+              <input id="filter" type="search" placeholder="Filter requests" aria-label="Filter requests">
+            </div>
+            <button class="icon-btn" id="pause-btn" type="button" title="Pause live updates" aria-label="Pause live updates">
+              <svg class="icon"><use href="#i-pause"/></svg>
+            </button>
+            <button class="icon-btn" id="clear-btn" type="button" title="Clear requests" aria-label="Clear requests">
+              <svg class="icon"><use href="#i-trash"/></svg>
+            </button>
+            <button class="icon-btn" id="close-inspector" type="button" title="Close inspector" aria-label="Close inspector">
+              <svg class="icon"><use href="#i-x"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="inspector-body" id="inspector-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th>Path</th>
+                  <th>Status</th>
+                  <th class="num">Time</th>
+                  <th class="num">Size</th>
+                  <th>At</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+            <div class="requests-empty" id="requests-empty">
+              <span class="mini-orb" aria-hidden="true"></span>
+              <strong>Waiting for traffic</strong>
+              <p>Hit the public URL and requests will stream in here.</p>
+            </div>
+          </div>
+
+          <aside class="detail" id="detail" hidden>
+            <div class="detail-head">
+              <div>
+                <div class="detail-title" id="detail-title"></div>
+                <div class="detail-meta" id="detail-meta"></div>
+              </div>
+              <div class="detail-actions">
+                <button class="secondary small" id="replay-btn" type="button">
+                  <svg class="icon"><use href="#i-refresh"/></svg> Replay
+                </button>
+                <button class="icon-btn" id="close-detail" type="button" aria-label="Close request detail" title="Close detail">
+                  <svg class="icon"><use href="#i-x"/></svg>
+                </button>
+              </div>
+            </div>
+            <p class="detail-error" id="detail-error" hidden></p>
+            <h4>Request headers</h4>
+            <table class="headers" id="req-headers"></table>
+            <h4>Request body <span class="muted" id="req-size"></span></h4>
+            <pre class="body" id="req-body"></pre>
+            <h4>Response headers</h4>
+            <table class="headers" id="res-headers"></table>
+            <h4>Response body <span class="muted" id="res-size"></span></h4>
+            <pre class="body" id="res-body"></pre>
+          </aside>
+        </div>
+
+        <div class="tcp-note" id="tcp-note" hidden>
+          <span class="tcp-note-icon" aria-hidden="true"><svg class="icon"><use href="#i-plug"/></svg></span>
+          <h3>Raw TCP tunnel is live</h3>
+          <p>Connections are bridged byte-for-byte, so there are no HTTP requests to inspect. The tunnel card shows the active connection count.</p>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span class="status-item status-ws">
+      <span class="status-label">ws</span>
+      <span class="status-dot" id="live-dot"></span>
+      <span id="live-label">connecting</span>
+    </span>
+    <span class="status-item" id="status-requests">0 req</span>
+    <span class="status-spacer"></span>
+    <span class="status-item status-brand">wormhole 0.1.0</span>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <svg class="icon" id="toast-icon"><use href="#i-check"/></svg>
+    <span id="toast-text"></span>
+  </div>
+
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <form id="settings-form" class="dialog-card">
+      <div class="dialog-head">
+        <div>
+          <h3 id="settings-title">Dashboard settings</h3>
+          <p>Stored in this browser only. Running tunnels keep their current settings.</p>
+        </div>
+        <button class="icon-btn" id="settings-close" type="button" aria-label="Close settings">
+          <svg class="icon"><use href="#i-x"/></svg>
+        </button>
+      </div>
+
+      <div class="field">
+        <label for="s-server">Relay server</label>
+        <input id="s-server" type="text" placeholder="localhost:4443" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="field">
+        <label for="s-token">Auth token <span class="optional">optional</span></label>
+        <input id="s-token" type="password" placeholder="Use the dashboard default" autocomplete="off">
+        <p class="hint sans">Leave blank to use the token configured in the dashboard process.</p>
+      </div>
+
+      <div class="field">
+        <label for="s-local-host">Default local host</label>
+        <input id="s-local-host" type="text" placeholder="localhost" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="field">
+        <label for="s-public-base">Public URL base</label>
+        <input id="s-public-base" type="text" placeholder="http://localhost:8080" autocomplete="off" spellcheck="false">
+        <p class="hint sans">Used to preview links. The relay's assigned URL always wins after connecting.</p>
+      </div>
+
+      <label class="check">
+        <input id="s-secure" type="checkbox">
+        Verify the relay's TLS certificate
+      </label>
+
+      <div class="dialog-actions">
+        <button class="secondary" id="settings-cancel" type="button">Cancel</button>
+        <button class="primary" type="submit">Save settings</button>
+      </div>
+    </form>
+  </dialog>
+
+  <noscript>This dashboard needs JavaScript enabled.</noscript>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

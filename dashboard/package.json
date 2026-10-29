@@ -1,0 +1,26 @@
+{
+  "name": "@wormhole/dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local web dashboard for starting and inspecting Wormhole tunnels",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "bin": {
+    "wormhole-dashboard": "./bin/wormhole-dashboard.js"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wormhole/client": "*",
+    "@wormhole/inspector": "*",
+    "@wormhole/protocol": "*",
+    "tsx": "^4.23.15",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13"
+  }
+}
