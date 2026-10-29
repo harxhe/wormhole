@@ -61,6 +61,19 @@ Current state of the Wormhole implementation.
 - [x] Auto-reconnect with exponential backoff, same subdomain on retry
 - [x] Inspector on `:4040`: method, path, status, timing, live updates, replay
 
+## Dashboard
+
+- [x] `@wormhole/dashboard` workspace and `npm run dashboard`
+- [x] `TunnelManager`: multiple concurrent tunnels with independent request stores
+- [x] Start/stop HTTP and raw TCP tunnels from the browser
+- [x] Public URL copy/open, status, uptime and request counts
+- [x] Live request table, detail pane, filter, pause and replay
+- [x] Settings for relay, token, local host, public URL base and TLS verification
+- [x] WebSocket broadcast for tunnel and request changes
+- [x] Same-origin write protection, strict CSP and loopback-only default bind
+- [x] Responsive light terminal UI with no build step
+- [x] Input, API and cross-origin tests
+
 ## Deployment
 
 - [x] Dockerfile and `.dockerignore`
@@ -86,7 +99,7 @@ Current state of the Wormhole implementation.
 
 ## Verification
 
-- [x] `npm test` — **134 tests passing** across 16 files
+- [x] `npm test` — **146 tests passing** across 18 files
 - [x] `npm run typecheck` — clean
 - [x] Real-process smoke test: server + HTTP client + TCP client
 - [x] Docker image builds and the relay starts in a container
@@ -95,6 +108,8 @@ Current state of the Wormhole implementation.
 
 ## Known limitations
 
+- The dashboard is a local developer tool; it binds to loopback and has no user
+  accounts. TCP tunnels show status/connections but no HTTP request details.
 - One HTTP request per stream; no keep-alive or WebSocket upgrade through a
   single stream.
 - Backpressure is connection-wide, so one slow stream pauses all streams.

@@ -609,6 +609,81 @@ getHeader(headers: [string, string][], name: string): string | undefined
 decodeChunked(body: Buffer): Buffer | null
 ```
 
+## `@wormhole/dashboard`
+
+Local web dashboard for creating and inspecting tunnels. Entry point:
+`dashboard/src/index.ts`. It depends on `@wormhole/client` and
+`@wormhole/inspector`; the relay and protocol are unchanged.
+
+### `dashboard/src/manager.ts`
+
+```ts
+interface TunnelSnapshot {
+  id: string; type: "http" | "tcp";
+  localHost: string; localPort: number;
+  state: "starting" | "online" | "reconnecting" | "offline";
+  url: string | null; subdomain: string | null; message: string | null;
+  createdAt: number; streamCount: number; requestCount: number; errorCount: number;
+}
+
+interface CreateTunnelInput {
+  type?: "http" | "tcp"; localPort: number; localHost?: string;
+  subdomain?: string; server?: string; token?: string;
+  secure?: boolean; caPath?: string;
+}
+
+class TunnelManager extends EventEmitter {
+  constructor(defaults: ManagerDefaults)
+  readonly count: number
+  create(input: CreateTunnelInput): TunnelSnapshot
+  list(): TunnelSnapshot[]
+  get(id: string): ManagedTunnel
+  stop(id: string): void
+  requests(id: string): RequestSummary[]
+  request(id: string, requestId: number): RequestDetail | undefined
+  replay(id: string, requestId: number): Promise<RequestSummary>
+  clear(id: string): void
+  closeAll(): void
+}
+```
+
+Every tunnel owns one `TunnelClient`; every HTTP tunnel also owns one
+`RequestStore`. Events: `tunnel (snapshot)`, `remove (id)`,
+`request (id, summary)`, `clear (id)`.
+
+### `dashboard/src/server.ts`
+
+```ts
+startDashboardServer(options?: {
+  port?: number; host?: string;
+  manager?: TunnelManager;
+  defaults?: Partial<ManagerDefaults>;
+}): Promise<DashboardServer>
+
+interface DashboardServer {
+  readonly port: number; readonly url: string;
+  readonly manager: TunnelManager;
+  close(): Promise<void>;
+}
+```
+
+Binds `127.0.0.1:4040` by default. Routes:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/config` | Defaults and current tunnels |
+| GET/POST | `/api/tunnels` | List or start tunnels |
+| GET/DELETE | `/api/tunnels/:id` | Snapshot or stop a tunnel |
+| GET/DELETE | `/api/tunnels/:id/requests` | List or clear requests |
+| GET | `/api/tunnels/:id/requests/:rid` | Request detail |
+| POST | `/api/tunnels/:id/requests/:rid/replay` | Replay a request |
+| GET | `/api/health` | Liveness |
+| WS | `/ws` | Snapshot and live tunnel/request messages |
+
+Writes are same-origin only. The dashboard serves a strict CSP and never sends
+the relay token to the browser; the optional per-browser token override is sent
+only when starting a tunnel.
+
 ## `@wormhole/bench`
 
 Benchmark harness. Entry point: `bench/src/run.ts` (`npm run bench`).

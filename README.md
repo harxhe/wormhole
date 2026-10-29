@@ -15,8 +15,9 @@ wormhole/
 ├── protocol/    # frame encoder/decoder, constants, types
 ├── transport/   # shared socket runtime: mux, HTTP helpers, logger
 ├── server/      # relay server + public HTTP/TCP listeners
-├── client/      # CLI client
-├── inspector/   # HTTP request dashboard
+├── client/      # tunnel client library + CLI
+├── dashboard/   # local web dashboard: start and inspect tunnels
+├── inspector/   # request store and single-tunnel inspector
 ├── bench/       # benchmark harness, results and charts
 ├── deploy/      # Docker/Caddy production configuration
 ├── docs/        # protocol, API, client, capture, report, demo
@@ -31,20 +32,25 @@ The relay and client are functional end to end:
 - one outbound TLS connection multiplexed into many streams
 - per-tunnel stream caps, per-token tunnel caps and request-rate limits
 - automatic reconnect with the same HTTP subdomain
+- local web dashboard for starting tunnels and watching live requests
 - live inspector with request replay
 - Docker image and a Caddy-based wildcard-TLS deployment guide
 - benchmark harness with latency/throughput results and charts
-- 134 automated tests
+- 146 automated tests
 
 See [`progress.md`](./progress.md) for the current checklist and handoff notes.
 
 ## Quick start
 
 ```sh
-npm install     # install workspaces
-npm test        # run the test suite
-npm run server  # start the relay server
+npm install       # install workspaces
+npm test          # run the test suite
+npm run server    # start the relay server
+npm run dashboard # start the web UI (second terminal)
 ```
+
+The dashboard opens at <http://localhost:4040>. Enter a local port, click
+**Start tunnel**, and use the public URL. See [`dashboard/README.md`](./dashboard/README.md).
 
 ### Defaults
 
@@ -59,6 +65,27 @@ npm run server  # start the relay server
 
 The server generates a self-signed certificate into `server/certs/` on first
 run. See the [server README](./server/README.md) for all configuration options.
+
+## Dashboard
+
+The dashboard is the UI-first way to use Wormhole. It runs locally, manages one
+`TunnelClient` per tunnel, and shows live HTTP requests with replay:
+
+![Wormhole dashboard](./dashboard/docs/dashboard.png)
+
+```sh
+npm run server     # terminal 1: relay
+npm run dashboard  # terminal 2: UI at http://localhost:4040
+```
+
+- enter a port, choose HTTP or TCP, optionally request a public name
+- copy or open the assigned public URL
+- watch requests arrive, inspect headers/bodies, replay, filter, pause
+- stop or start tunnels without touching the CLI
+- settings for relay, token, local host and TLS verification
+
+The relay is a separate process; the dashboard only controls client-side
+tunnels. The CLI below remains available for scripts, CI and headless use.
 
 ## Running the client
 
@@ -162,6 +189,7 @@ See [`bench/README.md`](./bench/README.md) and
 |---|---|
 | [`docs/PROTOCOL.md`](./docs/PROTOCOL.md) | Wire format and frame semantics |
 | [`docs/API.md`](./docs/API.md) | Internal module APIs |
+| [`dashboard/README.md`](./dashboard/README.md) | Web dashboard: usage, API and architecture |
 | [`docs/CLIENT.md`](./docs/CLIENT.md) | Client and inspector design, known issues |
 | [`docs/CAPTURE.md`](./docs/CAPTURE.md) | Wireshark capture and TLS decryption |
 | [`docs/REPORT.md`](./docs/REPORT.md) | Project report and evaluation |

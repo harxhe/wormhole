@@ -4,6 +4,11 @@ A 5–7 minute walkthrough. Everything runs locally; no DNS or VPS required.
 
 ## 0. Setup
 
+> **UI-first variant:** run `npm run server` in one terminal and
+> `npm run dashboard` in another. Enter port `3000` in the dashboard and click
+> **Start tunnel**. The dashboard then covers steps 1, 3 and 5 below; the CLI is
+> optional. See [`dashboard/README.md`](../dashboard/README.md).
+
 Three terminals in the repo root:
 
 ```sh
